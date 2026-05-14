@@ -8,6 +8,7 @@ const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: '⊞' },
   { href: '/people',    label: 'Personas',  icon: '◎' },
   { href: '/memories',  label: 'Memorias',  icon: '◈' },
+  { href: '/state',     label: 'Estado',    icon: '◉' },
 ];
 
 export default function Sidebar({ userEmail }: { userEmail: string }) {
