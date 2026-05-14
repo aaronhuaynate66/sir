@@ -1,5 +1,6 @@
 import { getServiceClient, getAuthUser } from '@/lib/supabase-server';
 import { trackEvent } from '@sir/db';
+import { checkRateLimit } from '@/lib/ratelimit';
 import type { DbPerson, DbRelationship } from '@sir/db';
 
 export const runtime = 'nodejs';
@@ -175,6 +176,12 @@ Activa el Claude API (ANTHROPIC_API_KEY) para obtener análisis de timing person
 
 export async function POST(req: Request): Promise<Response> {
   try {
+    const authUser = await getAuthUser();
+    if (!authUser) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const rateLimitRes = await checkRateLimit(authUser.id, 5, '1 m');
+    if (rateLimitRes) return rateLimitRes;
+
     const body     = await req.json() as { personId?: string };
     const personId = body.personId;
 

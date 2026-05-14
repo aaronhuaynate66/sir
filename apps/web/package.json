@@ -13,6 +13,9 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
     "reactflow": "^11.11.4",
+    "zod": "^3.24.1",
+    "@upstash/ratelimit": "^2.0.5",
+    "@upstash/redis": "^1.35.0",
     "@react-email/components": "^0.0.33",
     "resend": "^4.0.0",
     "@sir/ai": "workspace:*",

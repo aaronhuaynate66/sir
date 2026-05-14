@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getUserFromRequest, AuthError } from '@/lib/auth';
 import { getServiceClient } from '@/lib/supabase-server';
 import { trackEvent } from '@sir/db';
+import { checkRateLimit } from '@/lib/ratelimit';
+import { humanStateSchema } from '@/lib/schemas';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,14 +42,23 @@ function calculateScores(b: HumanStateBody) {
 export async function POST(req: Request): Promise<NextResponse> {
   try {
     const userId = await getUserFromRequest(req);
-    const body = (await req.json()) as HumanStateBody;
 
-    if (!Number.isInteger(body.mood_score) || body.mood_score < 1 || body.mood_score > 5) {
-      return NextResponse.json({ error: 'mood_score must be an integer 1–5' }, { status: 400 });
+    const rateLimitRes = await checkRateLimit(userId, 30, '1 m');
+    if (rateLimitRes) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+
+    const raw   = await req.json().catch(() => ({})) as unknown;
+    const parse = humanStateSchema.safeParse(raw);
+    if (!parse.success) {
+      return NextResponse.json({ error: parse.error.errors[0]?.message ?? 'Invalid input' }, { status: 400 });
     }
-    if (!Number.isInteger(body.energy_score) || body.energy_score < 1 || body.energy_score > 10) {
-      return NextResponse.json({ error: 'energy_score must be an integer 1–10' }, { status: 400 });
-    }
+    const p = parse.data;
+    const body: HumanStateBody = {
+      mood_score:     p.mood_score,
+      energy_score:   p.energy_score,
+      physical_tags:  p.physical_tags,
+      emotional_tags: p.emotional_tags,
+      ...(p.notes != null ? { notes: p.notes } : {}),
+    };
 
     const scores = calculateScores(body);
 

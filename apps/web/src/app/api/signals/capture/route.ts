@@ -1,5 +1,7 @@
 import { getAuthUser, getServiceClient } from '@/lib/supabase-server';
 import { trackEvent } from '@sir/db';
+import { checkRateLimit } from '@/lib/ratelimit';
+import { captureSignalSchema } from '@/lib/schemas';
 import type { SocialSignalType } from '@sir/db';
 
 export const runtime = 'nodejs';
@@ -99,12 +101,18 @@ export async function POST(req: Request): Promise<Response> {
     const user = await getAuthUser();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const body = await req.json() as { content?: string; person_id?: string };
-    const content = (body.content ?? '').trim();
-    if (!content) return Response.json({ error: 'content required' }, { status: 400 });
+    const rateLimitRes = await checkRateLimit(user.id, 10, '1 m');
+    if (rateLimitRes) return rateLimitRes;
+
+    const raw   = await req.json().catch(() => ({})) as unknown;
+    const parse = captureSignalSchema.safeParse(raw);
+    if (!parse.success) {
+      return Response.json({ error: parse.error.errors[0]?.message ?? 'Invalid input' }, { status: 400 });
+    }
+    const { content, person_id: bodyPersonId } = parse.data;
 
     const db = getServiceClient();
-    let personId: string | null = body.person_id ?? null;
+    let personId: string | null = bodyPersonId ?? null;
 
     // ── AI extraction ─────────────────────────────────────────────────────────
     let extracted: ReturnType<typeof ruleBasedExtract> | null = null;

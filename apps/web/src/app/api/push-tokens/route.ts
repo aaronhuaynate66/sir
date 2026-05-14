@@ -1,23 +1,17 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, getServiceClient } from '@/lib/supabase-server';
+import { pushTokenSchema } from '@/lib/schemas';
 
 export async function POST(req: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body: unknown = await req.json();
-  if (
-    typeof body !== 'object' ||
-    body === null ||
-    typeof (body as Record<string, unknown>)['token'] !== 'string'
-  ) {
-    return NextResponse.json({ error: 'token is required' }, { status: 400 });
+  const raw   = await req.json().catch(() => ({})) as unknown;
+  const parse = pushTokenSchema.safeParse(raw);
+  if (!parse.success) {
+    return NextResponse.json({ error: parse.error.errors[0]?.message ?? 'Invalid token' }, { status: 400 });
   }
-
-  const token = (body as Record<string, string | undefined>)['token'];
-  if (!token || !token.startsWith('ExponentPushToken[')) {
-    return NextResponse.json({ error: 'Invalid Expo push token format' }, { status: 400 });
-  }
+  const { token } = parse.data;
 
   const { error } = await getServiceClient()
     .from('users')

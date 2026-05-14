@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { getAuthUser, getServiceClient } from '@/lib/supabase-server';
 import SettingsForm from './SettingsForm';
 import type { NotificationPrefs } from './actions';
@@ -35,6 +36,18 @@ export default async function SettingsPage() {
         </p>
       </div>
       <SettingsForm initial={prefs} />
+
+      <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid #2a2d3e' }}>
+        <Link
+          href="/settings/privacy"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            color: '#94a3b8', fontSize: 13, textDecoration: 'none',
+          }}
+        >
+          Privacidad y datos →
+        </Link>
+      </div>
     </div>
   );
 }
