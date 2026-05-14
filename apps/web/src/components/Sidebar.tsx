@@ -9,6 +9,7 @@ interface NavItem {
   label: string;
   icon:  string;
   badge?: number;
+  pro?:  boolean;
 }
 
 function buildNav(unreadCount: number): NavItem[] {
@@ -19,6 +20,7 @@ function buildNav(unreadCount: number): NavItem[] {
     { href: '/signals',       label: 'Señales',   icon: '◆' },
     { href: '/memories',      label: 'Memorias',  icon: '◈' },
     { href: '/state',         label: 'Estado',    icon: '◉' },
+    { href: '/executive',     label: 'Executive', icon: '◈', pro: true },
     { href: '/notifications', label: 'Alertas',   icon: '🔔', ...(unreadCount > 0 ? { badge: unreadCount } : {}) },
     { href: '/settings',      label: 'Config',    icon: '⚙' },
   ];
@@ -57,7 +59,7 @@ export default function Sidebar({
       </div>
 
       <nav style={{ flex: 1, padding: '16px 12px' }}>
-        {NAV.map(({ href, label, icon, badge }) => {
+        {NAV.map(({ href, label, icon, badge, pro }) => {
           const active = pathname === href || pathname.startsWith(href + '/');
           return (
             <Link key={href} href={href} style={{
@@ -76,6 +78,11 @@ export default function Sidebar({
             }}>
               <span style={{ fontSize: 16 }}>{icon}</span>
               <span style={{ flex: 1 }}>{label}</span>
+              {pro && (
+                <span style={{ fontSize: 9, fontWeight: 700, background: '#6366f133', color: '#818cf8', borderRadius: 4, padding: '1px 5px' }}>
+                  PRO
+                </span>
+              )}
               {badge !== undefined && badge > 0 && (
                 <span style={{
                   fontSize: 11,
