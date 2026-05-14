@@ -133,3 +133,37 @@ export type InsertSignal = Pick<DbSignal, 'user_id' | 'type'> &
   Partial<Pick<DbSignal, 'payload' | 'memory_id' | 'processed' |
     'signal_type' | 'opportunity_score' | 'action_recommendation' |
     'person_id' | 'processed_at' | 'source'>>;
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | 'birthday_reminder'
+  | 'reconnect_suggestion'
+  | 'signal_opportunity'
+  | 'weekly_digest'
+  | 'briefing_ready';
+
+export type NotificationChannel = 'push' | 'email' | 'in_app';
+export type NotificationStatus  = 'pending' | 'sent' | 'failed' | 'read';
+
+export interface DbNotificationLog {
+  id:            string;
+  user_id:       string;
+  type:          NotificationType;
+  channel:       NotificationChannel;
+  title:         string;
+  body:          string;
+  person_id:     string | null;
+  signal_id:     string | null;
+  urgency_score: number;
+  sent_at:       string | null;
+  read_at:       string | null;
+  status:        NotificationStatus;
+  metadata:      Record<string, unknown>;
+  created_at:    string;
+}
+
+export type InsertNotificationLog =
+  Pick<DbNotificationLog, 'user_id' | 'type' | 'channel' | 'title' | 'body'> &
+  Partial<Pick<DbNotificationLog, 'person_id' | 'signal_id' | 'urgency_score' |
+    'metadata' | 'sent_at' | 'status'>>;

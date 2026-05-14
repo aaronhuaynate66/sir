@@ -2,5 +2,11 @@
   "framework": "nextjs",
   "installCommand": "npm install -g pnpm@9.0.0 && cd ../.. && pnpm install --no-frozen-lockfile",
   "buildCommand": "cd ../.. && pnpm turbo build --filter=@sir/web...",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "crons": [
+    {
+      "path": "/api/notifications/engine",
+      "schedule": "0 * * * *"
+    }
+  ]
 }

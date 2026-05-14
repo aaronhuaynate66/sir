@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
+    "@react-email/components": "^0.0.33",
+    "resend": "^4.0.0",
     "@sir/ai": "workspace:*",
     "@sir/db": "workspace:*",
     "@sir/shared": "workspace:*",

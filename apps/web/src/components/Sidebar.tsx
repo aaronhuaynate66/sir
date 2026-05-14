@@ -4,17 +4,35 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-browser';
 
-const NAV = [
-  { href: '/dashboard', label: 'Dashboard', icon: '⊞' },
-  { href: '/people',    label: 'Personas',  icon: '◎' },
-  { href: '/signals',   label: 'Señales',   icon: '◆' },
-  { href: '/memories',  label: 'Memorias',  icon: '◈' },
-  { href: '/state',     label: 'Estado',    icon: '◉' },
-];
+interface NavItem {
+  href:  string;
+  label: string;
+  icon:  string;
+  badge?: number;
+}
 
-export default function Sidebar({ userEmail }: { userEmail: string }) {
+function buildNav(unreadCount: number): NavItem[] {
+  return [
+    { href: '/dashboard',     label: 'Dashboard', icon: '⊞' },
+    { href: '/people',        label: 'Personas',  icon: '◎' },
+    { href: '/signals',       label: 'Señales',   icon: '◆' },
+    { href: '/memories',      label: 'Memorias',  icon: '◈' },
+    { href: '/state',         label: 'Estado',    icon: '◉' },
+    { href: '/notifications', label: 'Alertas',   icon: '🔔', ...(unreadCount > 0 ? { badge: unreadCount } : {}) },
+    { href: '/settings',      label: 'Config',    icon: '⚙' },
+  ];
+}
+
+export default function Sidebar({
+  userEmail,
+  unreadCount = 0,
+}: {
+  userEmail: string;
+  unreadCount?: number;
+}) {
   const pathname = usePathname();
   const router = useRouter();
+  const NAV = buildNav(unreadCount);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -38,7 +56,7 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
       </div>
 
       <nav style={{ flex: 1, padding: '16px 12px' }}>
-        {NAV.map(({ href, label, icon }) => {
+        {NAV.map(({ href, label, icon, badge }) => {
           const active = pathname === href || pathname.startsWith(href + '/');
           return (
             <Link key={href} href={href} style={{
@@ -56,14 +74,31 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
               transition: 'all 0.15s',
             }}>
               <span style={{ fontSize: 16 }}>{icon}</span>
-              {label}
+              <span style={{ flex: 1 }}>{label}</span>
+              {badge !== undefined && badge > 0 && (
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  background: '#818cf8',
+                  color: '#fff',
+                  borderRadius: 10,
+                  padding: '1px 6px',
+                  minWidth: 18,
+                  textAlign: 'center' as const,
+                }}>
+                  {badge > 99 ? '99+' : badge}
+                </span>
+              )}
             </Link>
           );
         })}
       </nav>
 
       <div style={{ padding: '16px 20px', borderTop: '1px solid #2a2d3e' }}>
-        <p style={{ fontSize: 12, color: '#475569', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <p style={{
+          fontSize: 12, color: '#475569', marginBottom: 10,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
           {userEmail}
         </p>
         <button onClick={handleLogout} style={{

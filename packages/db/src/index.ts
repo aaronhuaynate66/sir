@@ -6,3 +6,4 @@ export * from './repositories/memories';
 export * from './repositories/signals';
 export * from './repositories/people';
 export * from './repositories/relationships';
+export * from './repositories/notifications';
