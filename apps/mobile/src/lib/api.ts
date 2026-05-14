@@ -164,6 +164,41 @@ export async function registerInteraction(body: RegisterInteractionBody): Promis
   return response.json() as Promise<DbRelationshipMobile>;
 }
 
+export interface AdvisorSuggestion {
+  person_id: string;
+  person_name: string;
+  person_org: string | null;
+  urgency: 'high' | 'medium' | 'low';
+  contact_score: number;
+  reason: string;
+  last_contact_at: string | null;
+  days_since_contact: number | null;
+  relationship_score: number;
+}
+
+export interface AdvisorResponse {
+  user_available: boolean;
+  availability_score: number;
+  interaction_risk: number;
+  suggestions: AdvisorSuggestion[];
+  generated_at: string;
+}
+
+export async function getAdvisor(): Promise<AdvisorResponse> {
+  const token = getToken();
+  if (!token) throw new Error('No active session');
+
+  const response = await fetch(`${API_URL}/api/advisor`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const err = (await response.json()) as ApiError;
+    throw new Error(err.error ?? `Request failed with status ${response.status}`);
+  }
+  return response.json() as Promise<AdvisorResponse>;
+}
+
 export async function checkHealth(): Promise<boolean> {
   try {
     const response = await fetch(`${API_URL}/api/health`);
