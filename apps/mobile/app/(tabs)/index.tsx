@@ -3,13 +3,57 @@ import {
   TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useState, useRef } from 'react';
+import { router } from 'expo-router';
 import { useSignals } from '../../src/hooks/useSignals';
+import { useHumanState } from '../../src/hooks/useHumanState';
 
 interface Message {
   id: string;
   text: string;
   role: 'user' | 'system';
   layers?: string[];
+}
+
+function scoreColor(score: number): string {
+  if (score >= 70) return '#22c55e';
+  if (score >= 40) return '#f59e0b';
+  return '#ef4444';
+}
+
+const MOOD_EMOJI = ['😔', '😐', '🙂', '😊', '🤩'];
+
+function StateWidget() {
+  const { todayState, loading } = useHumanState();
+
+  if (loading) return null;
+
+  if (!todayState) {
+    return (
+      <TouchableOpacity style={styles.widgetPrompt} onPress={() => router.push('/(tabs)/state')}>
+        <Text style={styles.widgetPromptText}>¿Cómo te sientes hoy?</Text>
+        <Text style={styles.widgetPromptArrow}>→</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  const color = scoreColor(todayState.composite_score);
+  const emoji = MOOD_EMOJI[todayState.mood_score - 1] ?? '🙂';
+
+  return (
+    <TouchableOpacity style={styles.widgetCard} onPress={() => router.push('/(tabs)/state')}>
+      <View style={[styles.widgetScore, { borderColor: color }]}>
+        <Text style={[styles.widgetScoreNum, { color }]}>{todayState.composite_score}</Text>
+      </View>
+      <View style={styles.widgetInfo}>
+        <Text style={styles.widgetLabel}>Tu estado hoy</Text>
+        <Text style={styles.widgetDetail}>
+          {emoji} · Energía {todayState.energy_score}/10
+          {todayState.emotional_tags.length > 0 ? ` · ${todayState.emotional_tags[0]}` : ''}
+        </Text>
+      </View>
+      <View style={[styles.widgetRiskDot, { backgroundColor: scoreColor(100 - todayState.interaction_risk) }]} />
+    </TouchableOpacity>
+  );
 }
 
 export default function ConversationScreen() {
@@ -46,6 +90,8 @@ export default function ConversationScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={90}
     >
+      <StateWidget />
+
       <FlatList
         ref={listRef}
         data={messages}
@@ -87,6 +133,31 @@ export default function ConversationScreen() {
 
 const styles = StyleSheet.create({
   container:    { flex: 1, backgroundColor: '#f9fafb' },
+
+  widgetPrompt: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    margin: 12, padding: 14, borderRadius: 14,
+    backgroundColor: '#eef2ff', borderWidth: 1, borderColor: '#c7d2fe',
+  },
+  widgetPromptText: { fontSize: 14, fontWeight: '600', color: '#4f46e5' },
+  widgetPromptArrow: { fontSize: 16, color: '#6366f1' },
+
+  widgetCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    margin: 12, padding: 14, borderRadius: 14,
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb',
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 2,
+  },
+  widgetScore: {
+    width: 46, height: 46, borderRadius: 23, borderWidth: 2.5,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  widgetScoreNum: { fontSize: 16, fontWeight: '800' },
+  widgetInfo:    { flex: 1 },
+  widgetLabel:   { fontSize: 12, color: '#9ca3af', fontWeight: '500' },
+  widgetDetail:  { fontSize: 14, color: '#111827', fontWeight: '600', marginTop: 1 },
+  widgetRiskDot: { width: 10, height: 10, borderRadius: 5 },
+
   list:         { padding: 16, gap: 8 },
   bubble:       { maxWidth: '80%', borderRadius: 12, padding: 12 },
   userBubble:   { alignSelf: 'flex-end', backgroundColor: '#6366f1' },

@@ -38,6 +38,49 @@ export async function sendSignal(
   return response.json() as Promise<CreateSignalResponse>;
 }
 
+export interface HumanStateBody {
+  mood_score: number;
+  energy_score: number;
+  physical_tags: string[];
+  emotional_tags: string[];
+  notes?: string;
+}
+
+export interface HumanStateLog {
+  id: string;
+  user_id: string;
+  mood_score: number;
+  energy_score: number;
+  physical_tags: string[];
+  emotional_tags: string[];
+  notes: string | null;
+  composite_score: number;
+  availability_score: number;
+  interaction_risk: number;
+  created_at: string;
+}
+
+export async function saveHumanState(body: HumanStateBody): Promise<HumanStateLog> {
+  const token = getToken();
+  if (!token) throw new Error('No active session');
+
+  const response = await fetch(`${API_URL}/api/human-state`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const err = (await response.json()) as ApiError;
+    throw new Error(err.error ?? `Request failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<HumanStateLog>;
+}
+
 export async function checkHealth(): Promise<boolean> {
   try {
     const response = await fetch(`${API_URL}/api/health`);
