@@ -1,6 +1,6 @@
 {
-  "buildCommand": "cd ../.. && pnpm turbo build --filter=@sir/web",
-  "outputDirectory": ".next",
-  "installCommand": "corepack enable && corepack prepare pnpm@9.0.0 --activate && cd ../.. && pnpm install --frozen-lockfile=false",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "installCommand": "npm install --legacy-peer-deps",
+  "buildCommand": "npx turbo build --filter=@sir/web...",
+  "outputDirectory": ".next"
 }
