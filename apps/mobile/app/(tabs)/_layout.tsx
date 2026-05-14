@@ -5,6 +5,7 @@ export default function TabLayout() {
     <Tabs screenOptions={{ tabBarActiveTintColor: '#6366f1' }}>
       <Tabs.Screen name="index"    options={{ title: 'Conversación' }} />
       <Tabs.Screen name="state"    options={{ title: 'Estado' }} />
+      <Tabs.Screen name="people"   options={{ title: 'Personas' }} />
       <Tabs.Screen name="memories" options={{ title: 'Memorias' }} />
     </Tabs>
   );

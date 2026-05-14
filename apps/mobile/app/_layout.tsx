@@ -25,14 +25,11 @@ export default function RootLayout() {
     const inTabs = segments[0] === '(tabs)';
 
     if (session) {
-      if (!inTabs) router.replace('/(tabs)');
+      // Only redirect away from auth screens; other app screens (e.g. person detail) are fine
+      if (inAuth) router.replace('/(tabs)');
     } else {
       if (!inAuth) {
-        if (!hasLanguage) {
-          router.replace('/(auth)/language');
-        } else {
-          router.replace('/(auth)/login');
-        }
+        router.replace(hasLanguage ? '/(auth)/login' : '/(auth)/language');
       }
     }
   }, [session, initialized, langChecked, hasLanguage, segments]);
@@ -49,6 +46,7 @@ export default function RootLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="person/[id]" />
     </Stack>
   );
 }
