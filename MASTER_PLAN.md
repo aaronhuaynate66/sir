@@ -2,7 +2,7 @@
 
 ## Estado general
 Última actualización: 2026-05-14
-Versión en producción: `2296e96` (fix: add @sir/db as explicit dep of @sir/ai to fix Vercel build)
+Versión en producción: `9ba40b7` (fix: add @anthropic-ai/sdk to apps/web deps)
 
 ## URLs de producción
 - Web: https://sir-web.vercel.app
@@ -132,7 +132,7 @@ Construye la visualización del grafo de relaciones en apps/web.
 
 ### 08 — Social Signal Engine
 **Estado:** ✅ Completo
-**Deploy:** ✅ Vercel (build fix: `2296e96`)
+**Deploy:** ✅ Vercel
 **Commit:** `9a3c0d4` (2026-05-14)
 **Prompt usado:** Construye el Social Signal Engine completo: (1) Migración SQL añadiendo columnas a tabla signals: signal_type (enum 9 valores), opportunity_score (0-100), action_recommendation, person_id, processed_at, source. (2) API POST /api/signals/capture con extracción AI (Claude Haiku → Ollama → reglas). (3) Página /signals con feed filtrable por tipo y persona, CaptureForm. (4) Widget "Oportunidades" en dashboard con top 3 señales. (5) Link "Señales" en Sidebar.
 **Verificación:**
@@ -140,7 +140,7 @@ Construye la visualización del grafo de relaciones en apps/web.
 - [x] API extrae signal_type con AI
 - [x] Página /signals renderiza señales con filtros
 - [x] Widget dashboard muestra oportunidades
-**Notas:** 9 tipos de señal, score 0-100, AI extraction pipeline con 3 niveles de fallback
+**Notas:** 9 tipos de señal, score 0-100, AI extraction pipeline con 3 niveles de fallback. Vercel auto-deploy configurado y activo.
 
 ---
 
@@ -427,6 +427,17 @@ Implementa control de costos AI para evitar sorpresas en facturación.
 - [ ] Bloqueo automático al superar $5/mes
 - [ ] Admin dashboard muestra costos por usuario
 **Notas:** Precios Claude hardcodeados, umbral $5/mes por usuario, Ollama como fallback gratuito
+
+---
+
+## Infraestructura
+| Item | Estado | Notas |
+|------|--------|-------|
+| GitHub → Vercel auto-deploy | ✅ Activo | push a master → deploy automático |
+| sir-web.vercel.app | ✅ Live | Next.js 14, pnpm workspaces |
+| sir-admin.vercel.app | ✅ Live | Next.js 14, pnpm workspaces |
+| Supabase | ✅ Activo | pgvector, RLS, 8 tablas |
+| Neo4j AuraDB | 🔄 Parcial | cliente listo, sync pendiente |
 
 ---
 
