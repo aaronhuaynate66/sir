@@ -76,7 +76,7 @@ export default function ConversationScreen() {
       id: `${Date.now()}-sys`,
       role: 'system',
       text: result
-        ? `Procesado. Capas: ${result.layersActivated.join(', ')}`
+        ? result.response
         : 'Error al procesar.',
       layers: result?.layersActivated,
     };

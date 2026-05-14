@@ -10,6 +10,7 @@ export interface CreateSignalResponse {
   signalId: string;
   processed: boolean;
   layersActivated: string[];
+  response: string;
 }
 
 export interface ApiError {
