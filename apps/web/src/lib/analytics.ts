@@ -1,6 +1,11 @@
-import { sendGAEvent } from 'next/third-parties/google';
+declare global {
+  interface Window {
+    gtag?: (...args: unknown[]) => void;
+  }
+}
 
-export function gtag(event: string, params?: Record<string, unknown>): void {
-  if (typeof window === 'undefined') return;
-  sendGAEvent('event', event, params ?? {});
+export function trackEvent(name: string, params?: Record<string, unknown>): void {
+  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+    window.gtag('event', name, params ?? {});
+  }
 }
