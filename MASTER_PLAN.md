@@ -2,7 +2,7 @@
 
 ## Estado general
 Última actualización: 2026-05-14
-Versión en producción: `ef11a4b` (feat: AI cost control)
+Versión en producción: `ade28ce` (test: fix all test suites — 86 tests passing)
 
 ## URLs de producción
 - Web: https://sir-web.vercel.app
@@ -158,7 +158,7 @@ Versión en producción: `ef11a4b` (feat: AI cost control)
 ### 11 — RevenueCat + Stripe
 **Estado:** ✅ Completo
 **Deploy:** ✅ Vercel
-**Commit:** `pending` (2026-05-14)
+**Commit:** `7a60dbb` (2026-05-14)
 **Prompt usado:**
 ```
 Implementa monetización en SIR con RevenueCat (mobile) + Stripe (web).
@@ -272,7 +272,7 @@ Pendiente:
 ### 16 — Executive Mode
 **Estado:** ✅ Completo
 **Deploy:** ✅ Vercel
-**Commit:** `pending` (2026-05-14)
+**Commit:** `721220d` (2026-05-14)
 **Prompt usado:**
 ```
 Construye el Executive Mode — vista de alto nivel para usuarios premium.
