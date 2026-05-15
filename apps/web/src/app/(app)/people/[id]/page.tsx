@@ -141,7 +141,21 @@ export default async function PersonPage({ params }: { params: { id: string } })
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
           <BriefingButton personName={person.name} personId={person.id} history={briefings} />
-          <ScreenshotAnalyzer personId={person.id} personName={person.name} />
+          <ScreenshotAnalyzer
+            personId={person.id}
+            personName={person.name}
+            existingValues={{
+              role:          person.role          ?? null,
+              organization:  person.organization  ?? null,
+              location:      person.location      ?? null,
+              education:     person.education     ?? null,
+              linkedin_url:  person.linkedin_url  ?? null,
+              instagram_url: person.instagram_url ?? null,
+              birthday:      person.birthday      ?? null,
+              anniversary:   person.anniversary   ?? null,
+              notes:         person.notes         ?? null,
+            }}
+          />
         </div>
       </div>
 

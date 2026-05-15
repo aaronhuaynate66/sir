@@ -33,12 +33,31 @@ const EDITABLE_FIELDS: [keyof AnalysisResult['data'], string, string][] = [
   ['notes',         'Notas',         'text' ],
 ];
 
-interface Props {
-  personId:   string;
-  personName: string;
+export interface ExistingPersonValues {
+  role:          string | null;
+  organization:  string | null;
+  location:      string | null;
+  education:     string | null;
+  linkedin_url:  string | null;
+  instagram_url: string | null;
+  birthday:      string | null;
+  anniversary:   string | null;
+  notes:         string | null;
 }
 
-export default function ScreenshotAnalyzer({ personId, personName }: Props) {
+interface Props {
+  personId:       string;
+  personName:     string;
+  existingValues: ExistingPersonValues;
+}
+
+// Fields where merge applies (skip name — always editable, not stored directly)
+const MERGE_FIELDS = new Set<keyof AnalysisResult['data']>([
+  'role', 'organization', 'location', 'education',
+  'linkedin_url', 'instagram_url', 'birthday', 'anniversary',
+]);
+
+export default function ScreenshotAnalyzer({ personId, personName, existingValues }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [analyzing, setAnalyzing]    = useState(false);
@@ -156,14 +175,55 @@ export default function ScreenshotAnalyzer({ personId, personName }: Props) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
               {EDITABLE_FIELDS.map(([key, label, type]) => {
                 const raw = confirmed[key];
-                // skip array fields and null-ish non-critical fields
                 if (Array.isArray(raw)) return null;
                 const val = (raw as string | null | undefined) ?? '';
                 if (!val && (key === 'notes' || key === 'connections')) return null;
+
+                // Check if this field already has a value in the person record
+                const existingVal = MERGE_FIELDS.has(key)
+                  ? (existingValues[key as keyof ExistingPersonValues] ?? null)
+                  : null;
+
+                // Special case: notes will be concatenated, show hint
+                const isNotes = key === 'notes';
+                const willConcat = isNotes && !!existingValues.notes && !!val;
+
+                if (existingVal && !isNotes) {
+                  // Field already set — show read-only warning, won't be overwritten
+                  return (
+                    <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {label}
+                      </span>
+                      <div style={{
+                        background: '#1a1d27', border: '1px solid #854d0e44',
+                        borderRadius: 8, padding: '7px 12px',
+                        display: 'flex', alignItems: 'center', gap: 8,
+                      }}>
+                        <span style={{ fontSize: 12, color: '#92400e' }}>⚠️</span>
+                        <span style={{ fontSize: 12, color: '#78350f', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          Ya existe: <strong style={{ color: '#fbbf24' }}>{existingVal}</strong>
+                          <span style={{ color: '#475569' }}> — no se sobreescribirá</span>
+                        </span>
+                      </div>
+                      {val && val !== existingVal && (
+                        <span style={{ fontSize: 11, color: '#475569', paddingLeft: 4 }}>
+                          Extraído: {val}
+                        </span>
+                      )}
+                    </div>
+                  );
+                }
+
                 return (
                   <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       {label}
+                      {willConcat && (
+                        <span style={{ color: '#818cf8', fontWeight: 400, marginLeft: 6, textTransform: 'none' }}>
+                          (se añadirá a las notas existentes)
+                        </span>
+                      )}
                     </span>
                     <input
                       type={type}

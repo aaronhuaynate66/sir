@@ -161,20 +161,54 @@ export async function confirmScreenshotAction(
   try {
     const db = getServiceClient();
 
-    // Build update payload — only non-null confirmed fields
+    // Fetch existing person to merge — never overwrite already-set fields
+    const { data: existing } = await db
+      .from('people')
+      .select('role, organization, location, education, linkedin_url, instagram_url, birthday, anniversary, notes, work_history, email, phone')
+      .eq('id', personId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!existing) throw new Error('Person not found');
+
+    const ep = existing as Record<string, unknown>;
     const update: Record<string, unknown> = {};
-    if (confirmedData.linkedin_url  !== undefined) update['linkedin_url']  = confirmedData.linkedin_url  ?? null;
-    if (confirmedData.instagram_url !== undefined) update['instagram_url'] = confirmedData.instagram_url ?? null;
-    if (confirmedData.birthday      !== undefined) update['birthday']      = confirmedData.birthday      ?? null;
-    if (confirmedData.anniversary   !== undefined) update['anniversary']   = confirmedData.anniversary   ?? null;
-    if (confirmedData.organization  !== undefined && confirmedData.organization)  update['organization'] = confirmedData.organization;
-    if (confirmedData.role          !== undefined && confirmedData.role)          update['role']         = confirmedData.role;
-    if (confirmedData.email         !== undefined && confirmedData.email)         update['email']        = confirmedData.email;
-    if (confirmedData.phone         !== undefined && confirmedData.phone)         update['phone']        = confirmedData.phone;
-    if (confirmedData.notes         !== undefined && confirmedData.notes)         update['notes']        = confirmedData.notes;
-    if (confirmedData.location      !== undefined && confirmedData.location)      update['location']     = confirmedData.location;
-    if (confirmedData.education     !== undefined && confirmedData.education)     update['education']    = confirmedData.education;
-    if (confirmedData.work_history?.length)  update['work_history'] = confirmedData.work_history;
+
+    // Only fill fields that are currently empty
+    const mergeIfEmpty = (field: string, val: unknown) => {
+      if (!ep[field] && val) update[field] = val;
+    };
+
+    mergeIfEmpty('role',          confirmedData.role);
+    mergeIfEmpty('organization',  confirmedData.organization);
+    mergeIfEmpty('location',      confirmedData.location);
+    mergeIfEmpty('education',     confirmedData.education);
+    mergeIfEmpty('linkedin_url',  confirmedData.linkedin_url);
+    mergeIfEmpty('instagram_url', confirmedData.instagram_url);
+    mergeIfEmpty('birthday',      confirmedData.birthday);
+    mergeIfEmpty('anniversary',   confirmedData.anniversary);
+    mergeIfEmpty('email',         confirmedData.email);
+    mergeIfEmpty('phone',         confirmedData.phone);
+
+    // Notes: concatenate
+    if (confirmedData.notes) {
+      update['notes'] = ep['notes']
+        ? `${ep['notes']}\n\n${confirmedData.notes}`
+        : confirmedData.notes;
+    }
+
+    // Work history: append entries not already present (match by role+company)
+    if (confirmedData.work_history?.length) {
+      const existingWH = (ep['work_history'] as import('@sir/db').WorkHistoryEntry[] | null) ?? [];
+      const existingKeys = new Set(existingWH.map(e => `${e.role}|${e.company}`));
+      const newEntries = confirmedData.work_history.filter(
+        e => !existingKeys.has(`${e.role}|${e.company}`)
+      );
+      update['work_history'] = newEntries.length > 0
+        ? [...existingWH, ...newEntries]
+        : undefined; // nothing to add
+      if (update['work_history'] === undefined) delete update['work_history'];
+    }
 
     if (Object.keys(update).length > 0) {
       const { error } = await db
