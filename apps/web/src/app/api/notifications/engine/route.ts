@@ -36,6 +36,7 @@ interface HumanStateRow {
 type NotificationChannel = 'push' | 'email' | 'in_app';
 type NotificationType =
   | 'birthday_reminder'
+  | 'anniversary_reminder'
   | 'reconnect_suggestion'
   | 'signal_opportunity'
   | 'weekly_digest'
@@ -269,6 +270,52 @@ async function evalBirthdays(user: UserRow, now: Date): Promise<NotificationJob[
   return jobs;
 }
 
+async function evalAnniversaries(user: UserRow, now: Date): Promise<NotificationJob[]> {
+  const db = getServiceClient();
+  const jobs: NotificationJob[] = [];
+
+  for (let days = 0; days <= 3; days++) {
+    const target = new Date(now.getTime() + days * 86_400_000);
+    const mm = String(target.getMonth() + 1).padStart(2, '0');
+    const dd = String(target.getDate()).padStart(2, '0');
+
+    const { data: people } = await db
+      .from('people')
+      .select('id, name, anniversary')
+      .eq('user_id', user.id)
+      .not('anniversary', 'is', null)
+      .like('anniversary', `%-${mm}-${dd}`);
+
+    for (const person of people ?? []) {
+      const { data: recent } = await db
+        .from('notification_logs')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('type', 'anniversary_reminder')
+        .eq('person_id', person.id)
+        .gte('created_at', new Date(now.getTime() - 48 * 3_600_000).toISOString());
+      if (recent?.length) continue;
+
+      const urgency = days <= 1 ? 0.85 : 0.55;
+      const personName = person.name as string;
+      const annivDate = new Date(person.anniversary as string)
+        .toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+
+      jobs.push({
+        userId:   user.id,
+        type:     'anniversary_reminder',
+        channels: selectChannels(urgency, user),
+        title:    days === 0 ? `💑 Hoy es el aniversario con ${personName}` : `💑 Aniversario con ${personName} en ${days} días`,
+        body:     `${personName} — aniversario el ${annivDate}.`,
+        urgency,
+        personId: person.id as string,
+        meta:     { days_until: days, anniversary_date: annivDate },
+      });
+    }
+  }
+  return jobs;
+}
+
 async function evalWeeklyDigest(user: UserRow, now: Date): Promise<NotificationJob[]> {
   if (now.getDay() !== 1) return []; // Monday only
   const hour = localHour(now, user.timezone);
@@ -386,15 +433,16 @@ async function processUser(user: UserRow, now: Date): Promise<number> {
   if ((dailyCount ?? 0) >= user.max_notifs_per_day) return 0;
 
   // 3. Evaluate all triggers
-  const [reconnects, opportunities, birthdays, digest, briefing] = await Promise.all([
+  const [reconnects, opportunities, birthdays, anniversaries, digest, briefing] = await Promise.all([
     evalReconnect(user, now).catch(() => [] as NotificationJob[]),
     evalSignalOpportunities(user, now).catch(() => [] as NotificationJob[]),
     evalBirthdays(user, now).catch(() => [] as NotificationJob[]),
+    evalAnniversaries(user, now).catch(() => [] as NotificationJob[]),
     evalWeeklyDigest(user, now).catch(() => [] as NotificationJob[]),
     evalBriefingReady(user, now).catch(() => [] as NotificationJob[]),
   ]);
 
-  const jobs = [...birthdays, ...opportunities, ...reconnects, ...digest, ...briefing]
+  const jobs = [...birthdays, ...anniversaries, ...opportunities, ...reconnects, ...digest, ...briefing]
     .sort((a, b) => b.urgency - a.urgency)
     .slice(0, user.max_notifs_per_day - (dailyCount ?? 0));
 

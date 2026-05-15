@@ -7,8 +7,11 @@ import {
   findRelationshipByPersonId,
   createRelationship,
   updateRelationship,
+  createMemory,
+  createSignal,
 } from '@sir/db';
 import { handleCreateSignal } from '@/handlers/signals';
+import type { AnalysisResult } from '@/app/api/people/[id]/analyze-screenshot/route';
 
 export type ActionResult = { error?: string };
 
@@ -110,6 +113,95 @@ export async function registerInteractionAction(
     return {};
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Error al registrar interacción' };
+  }
+}
+
+// ── Person extra fields ───────────────────────────────────────────────────────
+
+export async function updatePersonExtraFieldsAction(
+  personId: string,
+  fields: {
+    birthday?:      string | null;
+    anniversary?:   string | null;
+    instagram_url?: string | null;
+    linkedin_url?:  string | null;
+  },
+): Promise<ActionResult> {
+  const user = await getAuthUser();
+  if (!user) return { error: 'No autenticado' };
+  try {
+    const db = getServiceClient();
+    const { error } = await db
+      .from('people')
+      .update(fields)
+      .eq('id', personId)
+      .eq('user_id', user.id);
+    if (error) throw error;
+    revalidatePath(`/people/${personId}`);
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Error al actualizar' };
+  }
+}
+
+export async function confirmScreenshotAction(
+  personId: string,
+  personName: string,
+  result: AnalysisResult,
+  confirmedData: AnalysisResult['data'],
+): Promise<ActionResult> {
+  const user = await getAuthUser();
+  if (!user) return { error: 'No autenticado' };
+
+  try {
+    const db = getServiceClient();
+
+    // Build update payload — only non-null confirmed fields
+    const update: Record<string, string | null> = {};
+    if (confirmedData.linkedin_url  !== undefined) update['linkedin_url']  = confirmedData.linkedin_url  ?? null;
+    if (confirmedData.instagram_url !== undefined) update['instagram_url'] = confirmedData.instagram_url ?? null;
+    if (confirmedData.birthday      !== undefined) update['birthday']      = confirmedData.birthday      ?? null;
+    if (confirmedData.anniversary   !== undefined) update['anniversary']   = confirmedData.anniversary   ?? null;
+    if (confirmedData.organization  !== undefined && confirmedData.organization)  update['organization'] = confirmedData.organization;
+    if (confirmedData.role          !== undefined && confirmedData.role)          update['role']         = confirmedData.role;
+    if (confirmedData.email         !== undefined && confirmedData.email)         update['email']        = confirmedData.email;
+    if (confirmedData.phone         !== undefined && confirmedData.phone)         update['phone']        = confirmedData.phone;
+
+    if (Object.keys(update).length > 0) {
+      const { error } = await db
+        .from('people')
+        .update(update)
+        .eq('id', personId)
+        .eq('user_id', user.id);
+      if (error) throw error;
+    }
+
+    // Create a social memory
+    const summary = confirmedData.raw_summary ?? `Screenshot de ${result.type} analizado`;
+    await createMemory({
+      user_id:    user.id,
+      layer:      'social',
+      content:    `[Screenshot ${result.type}] ${personName}: ${summary}`,
+      importance: 60,
+    }).catch(() => undefined);
+
+    // Create a signal
+    await createSignal({
+      user_id: user.id,
+      type:    'relationship',
+      payload: {
+        person_id:    personId,
+        person_name:  personName,
+        source:       `screenshot_${result.type}`,
+        summary,
+        extracted:    confirmedData,
+      },
+    }).catch(() => undefined);
+
+    revalidatePath(`/people/${personId}`);
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Error al confirmar' };
   }
 }
 

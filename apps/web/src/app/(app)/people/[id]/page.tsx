@@ -3,6 +3,8 @@ import { getAuthUser, getServiceClient } from '@/lib/supabase-server';
 import BriefingButton, { type BriefingRecord } from '@/components/BriefingButton';
 import InteractionForm from './InteractionForm';
 import RelationshipTypeEditor from './RelationshipTypeEditor';
+import ScreenshotAnalyzer from './ScreenshotAnalyzer';
+import PersonExtraFieldsEditor from './PersonExtraFieldsEditor';
 import type { DbPerson, DbRelationship, PersonRelationshipType } from '@sir/db';
 
 export const dynamic = 'force-dynamic';
@@ -135,7 +137,10 @@ export default async function PersonPage({ params }: { params: { id: string } })
             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#475569' }}>{person.email}</p>
           )}
         </div>
-        <BriefingButton personName={person.name} personId={person.id} history={briefings} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+          <BriefingButton personName={person.name} personId={person.id} history={briefings} />
+          <ScreenshotAnalyzer personId={person.id} personName={person.name} />
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
@@ -166,6 +171,15 @@ export default async function PersonPage({ params }: { params: { id: string } })
               <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', lineHeight: 1.7 }}>{person.notes}</p>
             </div>
           )}
+
+          {/* Extra fields: birthday, anniversary, social links */}
+          <PersonExtraFieldsEditor
+            personId={person.id}
+            birthday={person.birthday ?? null}
+            anniversary={person.anniversary ?? null}
+            instagramUrl={person.instagram_url ?? null}
+            linkedinUrl={person.linkedin_url ?? null}
+          />
 
           {/* Register interaction */}
           <InteractionForm personId={person.id} personName={person.name} />
