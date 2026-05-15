@@ -12,6 +12,7 @@ import {
   createSignal,
 } from '@sir/db';
 import type { CycleData } from '@sir/db';
+import { trackServerEvent, EVENTS } from '@sir/analytics';
 import { handleCreateSignal } from '@/handlers/signals';
 import type { AnalysisResult } from '@/app/api/people/[id]/analyze-screenshot/route';
 
@@ -42,6 +43,7 @@ export async function createPersonAction(formData: FormData): Promise<ActionResu
       ...(email ? { email }              : {}),
       ...(notes ? { notes }              : {}),
     });
+    trackServerEvent(user.id, EVENTS.PERSON_CREATED, { relationship_type: relType });
     revalidatePath('/people');
     return {};
   } catch (e) {
@@ -346,6 +348,11 @@ export async function confirmScreenshotAction(
       },
     }).catch(() => undefined);
 
+    trackServerEvent(user.id, EVENTS.SCREENSHOT_SAVED, {
+      source_type:      result.type,
+      fields_updated:   Object.keys(update),
+      person_id:        personId,
+    });
     revalidatePath(`/people/${personId}`);
     return {};
   } catch (e) {

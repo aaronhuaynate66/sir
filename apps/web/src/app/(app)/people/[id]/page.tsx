@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation';
 import { getAuthUser, getServiceClient } from '@/lib/supabase-server';
 import BriefingButton, { type BriefingRecord } from '@/components/BriefingButton';
+import { trackServerEvent, EVENTS } from '@sir/analytics';
 import InteractionForm from './InteractionForm';
 import RelationshipTypeEditor from './RelationshipTypeEditor';
 import ScreenshotAnalyzer from './ScreenshotAnalyzer';
@@ -168,6 +169,12 @@ export default async function PersonPage({ params }: { params: { id: string } })
   const personMemories = allMemories
     .filter(m => m.content.toLowerCase().includes(nameLower))
     .slice(0, 12);
+
+  trackServerEvent(user.id, EVENTS.PERSON_VIEWED, {
+    person_id:      params.id,
+    has_cycle_data: !!person.cycle_data?.detected,
+    has_briefing:   briefings.length > 0,
+  });
 
   const summaryLines = buildSummaryLines(person, rel, lastSignalType);
 

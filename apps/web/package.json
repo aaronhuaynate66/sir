@@ -12,21 +12,23 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
-    "reactflow": "^11.11.4",
-    "stripe": "^17.0.0",
-    "zod": "^3.24.1",
-    "@upstash/ratelimit": "^2.0.5",
-    "@upstash/redis": "^1.35.0",
     "@react-email/components": "^0.0.33",
-    "resend": "^4.0.0",
     "@sir/ai": "workspace:*",
+    "@sir/analytics": "workspace:^",
     "@sir/db": "workspace:*",
     "@sir/shared": "workspace:*",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.47.0",
+    "@upstash/ratelimit": "^2.0.5",
+    "@upstash/redis": "^1.35.0",
     "next": "14.2.18",
+    "posthog-js": "^1.373.5",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0"
+    "react-dom": "^18.3.0",
+    "reactflow": "^11.11.4",
+    "resend": "^4.0.0",
+    "stripe": "^17.0.0",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
@@ -47,6 +49,7 @@
       "^@sir/ai$": "<rootDir>/../../packages/ai/src/index.ts",
       "^@sir/db$": "<rootDir>/../../packages/db/src/index.ts",
       "^@sir/shared$": "<rootDir>/../../packages/shared/src/index.ts",
+      "^@sir/analytics$": "<rootDir>/../../packages/analytics/src/index.ts",
       "^@/(.*)$": "<rootDir>/src/$1"
     },
     "coverageThreshold": {

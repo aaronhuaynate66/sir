@@ -1,5 +1,5 @@
 import { getServiceClient, getAuthUser } from '@/lib/supabase-server';
-import { trackEvent } from '@sir/db';
+import { trackServerEvent, EVENTS } from '@sir/analytics';
 import { checkRateLimit } from '@/lib/ratelimit';
 import { costTracker } from '@sir/ai';
 import type { DbPerson, DbRelationship } from '@sir/db';
@@ -344,13 +344,13 @@ export async function POST(req: Request): Promise<Response> {
           }
 
           costTracker.track(userId, 'claude-sonnet-4-6', inputTokens, outputTokens).catch(() => undefined);
-          trackEvent(userId, 'briefing_viewed', {
-            personId,
-            briefingId,
-            inputTokens,
-            outputTokens,
-            costUsd,
-          }).catch(() => undefined);
+          trackServerEvent(userId, EVENTS.BRIEFING_GENERATED, {
+            person_id:     personId,
+            briefing_id:   briefingId,
+            tokens:        inputTokens + outputTokens,
+            cost_usd:      costUsd,
+            model:         'claude-sonnet-4-6',
+          });
 
           controller.enqueue(encoder.encode(
             META_SEP + JSON.stringify({ inputTokens, outputTokens, costUsd, briefingId })

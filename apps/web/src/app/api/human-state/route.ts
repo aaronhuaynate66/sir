@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getUserFromRequest, AuthError } from '@/lib/auth';
 import { getServiceClient } from '@/lib/supabase-server';
-import { trackEvent } from '@sir/db';
+import { trackServerEvent, EVENTS } from '@sir/analytics';
 import { checkRateLimit } from '@/lib/ratelimit';
 import { humanStateSchema } from '@/lib/schemas';
 
@@ -81,11 +81,10 @@ export async function POST(req: Request): Promise<NextResponse> {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    trackEvent(userId, 'state_updated', {
-      compositeScore:    scores.composite_score,
-      availabilityScore: scores.availability_score,
-      interactionRisk:   scores.interaction_risk,
-    }).catch(() => undefined);
+    trackServerEvent(userId, EVENTS.STATE_LOGGED, {
+      mood_score:   scores.composite_score,
+      energy_score: scores.availability_score,
+    });
 
     return NextResponse.json(data, { status: 201 });
   } catch (err) {

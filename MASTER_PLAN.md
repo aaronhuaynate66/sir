@@ -2,9 +2,9 @@
 
 ## Estado general
 Última actualización: 2026-05-15
-Versión en producción: `80bddfe` — clue-inspired cycle UI + emotional context first
+Versión en producción: `d0fbcfb` — smart summary + split notes by life area
 
-**Nota 2026-05-15 (última sesión):** Módulos 18-20 + rediseño grafo. Screenshot Intelligence Engine (m18), Sensitive Context Engine con SVG cycle wheel estilo Clue (m19), Relationship Type Field 6-tipos (m20). Grafo rediseñado con nodos avatar, badge ciclo, hover cards, BriefingButton en side panel. Migraciones pendientes de aplicar: 000005 (cycle_data/sensitive_context), 000006 (emotional_state/love_language/relationship_patterns).
+**Nota 2026-05-15 (última sesión):** Módulo 21 — Analytics Event System. Paquete @sir/analytics con 22 eventos tipados, trackServerEvent (PostHog + Supabase), PostHogProvider cliente, integración en briefing/signals/human-state/actions/pages. Admin /analytics mejorado: top 10 eventos, briefings+costo hoy, screenshots hoy, tabla eventos recientes. Migraciones pendientes de aplicar: 000005-000007.
 
 ## URLs de producción
 - Web: https://sir-web.vercel.app
@@ -13,9 +13,9 @@ Versión en producción: `80bddfe` — clue-inspired cycle UI + emotional contex
 
 ## Progreso general
 ```
-████████████████████████ 20/20 módulos completados (100%)
+█████████████████████████ 21/21 módulos completados (100%)
 ```
-✅ Completo: 20 | 🔄 Parcial: 0 | ⬜ Pendiente: 0
+✅ Completo: 21 | 🔄 Parcial: 0 | ⬜ Pendiente: 0
 
 ---
 
@@ -373,6 +373,25 @@ Construye el Executive Mode — vista de alto nivel para usuarios premium.
 - [x] Briefing considera tipo de relación en prompt
 - [x] Build Next.js sin errores
 **Notas:** PersonRelationshipType en schema.ts. Editor inline usa server action `updatePersonRelationshipTypeAction`.
+
+---
+
+### 21 — Analytics Event System
+**Estado:** ✅ Completo
+**Commit:** (2026-05-15)
+**Descripción:** Tracking completo de eventos para entender uso del producto.
+**Componentes:**
+- `packages/analytics/` — paquete `@sir/analytics` con 22 eventos tipados y `trackServerEvent` (Supabase + PostHog via posthog-node)
+- `PostHogProvider` — componente cliente para identificación y page views
+- Eventos integrados: person_created, person_viewed, screenshot_saved, briefing_generated, signal_created, state_logged, graph_viewed
+- Admin `/analytics` mejorado: top 10 eventos, KPIs de briefings/screenshots/costo, tabla reciente
+**Verificación:**
+- [x] @sir/analytics package con 22 eventos tipados
+- [x] trackServerEvent escribe a Supabase analytics_events
+- [x] PostHog integración opcional (NEXT_PUBLIC_POSTHOG_KEY)
+- [x] Llamadas en briefing, signals, human-state, actions, people/[id], grafo
+- [x] Admin analytics page con métricas requeridas
+- [x] Tests pasan
 
 ---
 

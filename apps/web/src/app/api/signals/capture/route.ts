@@ -1,5 +1,5 @@
 import { getAuthUser, getServiceClient } from '@/lib/supabase-server';
-import { trackEvent } from '@sir/db';
+import { trackServerEvent, EVENTS } from '@sir/analytics';
 import { checkRateLimit } from '@/lib/ratelimit';
 import { captureSignalSchema } from '@/lib/schemas';
 import { costTracker } from '@sir/ai';
@@ -228,12 +228,12 @@ export async function POST(req: Request): Promise<Response> {
       metadata:   { signal_id: signalId, signal_type: extracted.signal_type, person_id: personId },
     });
 
-    trackEvent(user.id, 'signal_captured', {
-      signalId,
-      signalType:       extracted.signal_type,
-      opportunityScore: extracted.opportunity_score,
-      ...(personId ? { personId } : {}),
-    }).catch(() => undefined);
+    trackServerEvent(user.id, EVENTS.SIGNAL_CREATED, {
+      signal_type:       extracted.signal_type,
+      source:            'capture_api',
+      opportunity_score: extracted.opportunity_score,
+      ...(personId ? { person_id: personId } : {}),
+    });
 
     return Response.json({
       signalId,
