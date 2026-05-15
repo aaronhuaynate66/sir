@@ -16,7 +16,15 @@
         "OLLAMA_BASE_URL",
         "NEO4J_URI",
         "NEO4J_USER",
-        "NEO4J_PASSWORD"
+        "NEO4J_PASSWORD",
+        "CRON_SECRET",
+        "NEXT_PUBLIC_APP_URL",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_PRICE_ID",
+        "RESEND_API_KEY",
+        "EMAIL_FROM",
+        "UPSTASH_REDIS_REST_URL",
+        "UPSTASH_REDIS_REST_TOKEN"
       ]
     },
     "dev": {
