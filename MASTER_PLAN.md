@@ -1,8 +1,10 @@
 # SIR — Master Plan
 
 ## Estado general
-Última actualización: 2026-05-14
-Versión en producción: `ade28ce` (test: fix all test suites — 86 tests passing)
+Última actualización: 2026-05-15
+Versión en producción: pendiente deploy (feat: relationship type field + filters)
+
+**Nota 2026-05-15:** `relationship_type` agregado a `people`. 6 tipos: professional, networking, family, personal, strategic, developing. Filtros en /people, badge en cards, editor inline en /people/[id], widget en dashboard, contexto en AI Briefing prompt. Migración: `20260515000001_people_relationship_type.sql`.
 
 ## URLs de producción
 - Web: https://sir-web.vercel.app

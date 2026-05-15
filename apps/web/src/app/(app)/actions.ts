@@ -26,10 +26,12 @@ export async function createPersonAction(formData: FormData): Promise<ActionResu
     const role  = (formData.get('role') as string)?.trim()         || null;
     const email = (formData.get('email') as string)?.trim()        || null;
     const notes = (formData.get('notes') as string)?.trim()        || null;
+    const relType = ((formData.get('relationship_type') as string)?.trim() || 'networking') as import('@sir/db').PersonRelationshipType;
 
     await createPerson({
       user_id: user.id,
       name,
+      relationship_type: relType,
       ...(org   ? { organization: org }   : {}),
       ...(role  ? { role }               : {}),
       ...(email ? { email }              : {}),
@@ -39,6 +41,27 @@ export async function createPersonAction(formData: FormData): Promise<ActionResu
     return {};
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Error al crear persona' };
+  }
+}
+
+export async function updatePersonRelationshipTypeAction(
+  personId: string,
+  relationshipType: import('@sir/db').PersonRelationshipType,
+): Promise<ActionResult> {
+  const user = await getAuthUser();
+  if (!user) return { error: 'No autenticado' };
+  try {
+    const db = getServiceClient();
+    const { error } = await db.from('people')
+      .update({ relationship_type: relationshipType })
+      .eq('id', personId)
+      .eq('user_id', user.id);
+    if (error) throw error;
+    revalidatePath(`/people/${personId}`);
+    revalidatePath('/people');
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Error al actualizar tipo' };
   }
 }
 

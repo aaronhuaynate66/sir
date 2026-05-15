@@ -120,15 +120,36 @@ Estado físico: ${humanState.physical_tags.length > 0 ? humanState.physical_tags
 ${humanState.notes ? `Notas: ${humanState.notes}` : ''}`
     : '(no hay estado registrado hoy)';
 
+  const relTypeRaw = ((person as unknown as { relationship_type?: string }).relationship_type) ?? 'networking';
+  const relTypeLabels: Record<string, string> = {
+    strategic: 'Estratégico (inversor, mentor, aliado clave)',
+    professional: 'Profesional (colega, cliente, proveedor)',
+    networking: 'Networking (conocido, contacto de industria)',
+    personal: 'Personal (amigo cercano, pareja)',
+    family: 'Familia',
+    developing: 'Por desarrollar (prospecto)',
+  };
+  const relTypeTone: Record<string, string> = {
+    strategic:    'Enfócate en valor, oportunidades y alineación estratégica. Tono directo y ejecutivo.',
+    professional: 'Enfócate en colaboración, objetivos profesionales y reciprocidad laboral.',
+    networking:   'Enfócate en construir rapport y encontrar puntos de conexión comunes.',
+    personal:     'Enfócate en la conexión emocional, el bienestar de la persona y la calidad del vínculo.',
+    family:       'Tono cálido y cercano. Prioriza la conexión humana sobre lo transaccional.',
+    developing:   'Enfócate en el potencial de la relación y primeros pasos para profundizar el vínculo.',
+  };
+
   return `Genera un briefing ejecutivo sobre la siguiente persona en mi red relacional.
 
 ═══ PERSONA ═══
 Nombre: ${person.name}
+Tipo de relación: ${relTypeLabels[relTypeRaw] ?? relTypeRaw}
 Organización: ${person.organization ?? 'No especificada'}
 Rol: ${person.role ?? 'No especificado'}
 Email: ${person.email ?? 'No registrado'}
 Notas: ${person.notes ?? 'Sin notas'}
 Conocido desde: ${new Date(person.created_at).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+
+DIRECTIVA DE TONO: ${relTypeTone[relTypeRaw] ?? 'Equilibrado y profesional.'}
 
 ═══ RELACIÓN ═══
 ${rel ? `Etapa: ${stageMap[rel.stage] ?? rel.stage}

@@ -46,6 +46,14 @@ export default function NewPersonButton() {
               <Field label="Organización" name="organization" placeholder="Empresa S.A." />
               <Field label="Rol / Cargo" name="role" placeholder="CTO" />
               <Field label="Email" name="email" type="email" placeholder="juan@empresa.com" />
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Tipo de relación *</label>
+                <select name="relationship_type" defaultValue="networking" required style={{ ...inputStyle, cursor: 'pointer' }}>
+                  {REL_TYPES.map(t => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={labelStyle}>Notas</label>
                 <textarea
@@ -121,6 +129,15 @@ const inputStyle: React.CSSProperties = {
   fontSize: 14,
   outline: 'none',
 };
+const REL_TYPES = [
+  { value: 'networking',   label: '🤝 Networking' },
+  { value: 'professional', label: '👔 Profesional' },
+  { value: 'strategic',    label: '🎯 Estratégico' },
+  { value: 'personal',     label: '❤️ Personal' },
+  { value: 'family',       label: '👨‍👩‍👧 Familia' },
+  { value: 'developing',   label: '🌱 Por desarrollar' },
+];
+
 const submitBtn = (disabled: boolean): React.CSSProperties => ({
   width: '100%',
   padding: '10px',

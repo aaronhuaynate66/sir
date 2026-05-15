@@ -78,6 +78,14 @@ export interface DbSignal {
 export type RelationshipType = 'personal' | 'professional' | 'family';
 export type RelationshipStage = 'prospect' | 'active' | 'strategic' | 'dormant';
 
+export type PersonRelationshipType =
+  | 'professional'
+  | 'networking'
+  | 'family'
+  | 'personal'
+  | 'strategic'
+  | 'developing';
+
 export interface DbPerson {
   id: string;
   user_id: string;
@@ -91,6 +99,7 @@ export interface DbPerson {
   notes: string | null;
   tags: string[];
   language: string | null;
+  relationship_type: PersonRelationshipType;
   created_at: string;
   updated_at: string;
 }
@@ -113,7 +122,7 @@ export interface DbRelationship {
 
 export type InsertPerson = Pick<DbPerson, 'user_id' | 'name'> &
   Partial<Pick<DbPerson, 'email' | 'phone' | 'organization' | 'role' |
-    'linkedin_url' | 'avatar_url' | 'notes' | 'tags' | 'language'>>;
+    'linkedin_url' | 'avatar_url' | 'notes' | 'tags' | 'language' | 'relationship_type'>>;
 
 export type InsertRelationship = Pick<DbRelationship, 'user_id' | 'person_id'> &
   Partial<Pick<DbRelationship, 'strength' | 'reciprocity' | 'trust_score' |

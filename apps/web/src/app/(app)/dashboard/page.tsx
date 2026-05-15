@@ -31,6 +31,16 @@ const OPP_LABELS: Record<string, string> = {
   health_event: 'Salud', achievement: 'Logro', loss: 'Pérdida',
 };
 
+const REL_BREAKDOWN_COLORS: Record<string, string> = {
+  strategic: '#a855f7', professional: '#3b82f6', personal: '#22c55e',
+  family: '#f97316', networking: '#94a3b8', developing: '#eab308',
+};
+const REL_BREAKDOWN_LABELS: Record<string, string> = {
+  strategic: '🎯 Estratégico', professional: '👔 Profesional', personal: '❤️ Personal',
+  family: '👨‍👩‍👧 Familia', networking: '🤝 Networking', developing: '🌱 Por desarrollar',
+};
+const REL_TYPE_ORDER = ['strategic', 'professional', 'personal', 'family', 'networking', 'developing'];
+
 const AVATAR_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
 function avatarColor(name: string) { return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length] ?? '#6366f1'; }
 function initials(name: string) { return name.split(' ').slice(0, 2).map(p => p[0] ?? '').join('').toUpperCase(); }
@@ -54,7 +64,7 @@ async function getDashboardData(userId: string) {
     db.from('memories').select('*', { count: 'exact', head: true }).eq('user_id', userId),
     db.from('signals').select('*', { count: 'exact', head: true }).eq('user_id', userId),
     db.from('signals').select('*', { count: 'exact', head: true }).eq('user_id', userId).gte('created_at', weekAgo),
-    db.from('people').select('id, name, organization, role').eq('user_id', userId).order('name').limit(8),
+    db.from('people').select('id, name, organization, role, relationship_type').eq('user_id', userId).order('name').limit(50),
     db.from('human_state_logs')
       .select('composite_score, availability_score, interaction_risk, mood_score')
       .eq('user_id', userId)
@@ -80,7 +90,7 @@ async function getDashboardData(userId: string) {
   ]);
 
   // Build advisor suggestions locally (same algorithm as /api/advisor)
-  const people = (peopleRes.data ?? []) as Array<{ id: string; name: string; organization: string | null; role: string | null }>;
+  const people = (peopleRes.data ?? []) as Array<{ id: string; name: string; organization: string | null; role: string | null; relationship_type: string }>;
   const rels = (relsRes.data ?? []) as Array<{
     id: string; person_id: string; strength: number; reciprocity: number;
     trust_score: number; stage: string; last_contact_at: string | null;
@@ -143,16 +153,24 @@ async function getDashboardData(userId: string) {
     person: o.person_id ? (oppPeopleMap.get(o.person_id) ?? null) : null,
   }));
 
+  // Breakdown by relationship_type
+  const relTypeBreakdown: Record<string, number> = {};
+  for (const p of people) {
+    const t = p.relationship_type ?? 'networking';
+    relTypeBreakdown[t] = (relTypeBreakdown[t] ?? 0) + 1;
+  }
+
   return {
-    totalMemories:   memoriesRes.count  ?? 0,
-    totalSignals:    signalsRes.count   ?? 0,
-    signalsThisWeek: weekSignalsRes.count ?? 0,
-    totalPeople:     people.length,
+    totalMemories:    memoriesRes.count  ?? 0,
+    totalSignals:     signalsRes.count   ?? 0,
+    signalsThisWeek:  weekSignalsRes.count ?? 0,
+    totalPeople:      people.length,
     humanState,
-    recentSignals:   (signalsRecent.data ?? []) as DbSignal[],
+    recentSignals:    (signalsRecent.data ?? []) as DbSignal[],
     suggestions,
-    userAvailable:   humanState ? humanState.availability_score >= 50 : true,
+    userAvailable:    humanState ? humanState.availability_score >= 50 : true,
     opportunities,
+    relTypeBreakdown,
   };
 }
 
@@ -331,6 +349,35 @@ export default async function DashboardPage() {
                     {s.relationship_score}
                   </span>
                   <span style={{ fontSize: 10, color: '#475569' }}> rel</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Relationship type breakdown */}
+      {data.totalPeople > 0 && Object.keys(data.relTypeBreakdown).length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 600, color: '#e2e8f0', margin: 0 }}>Red por tipo</h2>
+            <Link href="/people" style={{ fontSize: 12, color: '#818cf8', textDecoration: 'none' }}>Ver todas →</Link>
+          </div>
+          <div style={{
+            background: '#1a1d27', border: '1px solid #2a2d3e',
+            borderRadius: 14, padding: '14px 20px',
+            display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center',
+          }}>
+            {REL_TYPE_ORDER.filter(t => data.relTypeBreakdown[t]).map(type => {
+              const color = REL_BREAKDOWN_COLORS[type] ?? '#94a3b8';
+              const count = data.relTypeBreakdown[type] ?? 0;
+              return (
+                <Link key={type} href={`/people?type=${type}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{
+                    display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0,
+                  }} />
+                  <span style={{ fontSize: 13, color: '#94a3b8' }}>{REL_BREAKDOWN_LABELS[type]}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color }}>{count}</span>
                 </Link>
               );
             })}

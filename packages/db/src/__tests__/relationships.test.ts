@@ -52,6 +52,7 @@ jest.mock('../repositories/people', () => ({
     notes: null,
     tags: [],
     language: null,
+    relationship_type: 'networking',
     created_at: '2026-05-14T00:00:00Z',
     updated_at: '2026-05-14T00:00:00Z',
   } as DbPerson),

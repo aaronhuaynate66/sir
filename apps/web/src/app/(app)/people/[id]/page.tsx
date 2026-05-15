@@ -2,7 +2,8 @@ import { redirect, notFound } from 'next/navigation';
 import { getAuthUser, getServiceClient } from '@/lib/supabase-server';
 import BriefingButton, { type BriefingRecord } from '@/components/BriefingButton';
 import InteractionForm from './InteractionForm';
-import type { DbPerson, DbRelationship } from '@sir/db';
+import RelationshipTypeEditor from './RelationshipTypeEditor';
+import type { DbPerson, DbRelationship, PersonRelationshipType } from '@sir/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,13 +110,12 @@ export default async function PersonPage({ params }: { params: { id: string } })
           {avatarInitials}
         </div>
         <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#e2e8f0', margin: '0 0 4px' }}>{person.name}</h1>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            {(person.role || person.organization) && (
-              <span style={{ color: '#64748b', fontSize: 14 }}>
-                {[person.role, person.organization].filter(Boolean).join(' · ')}
-              </span>
-            )}
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#e2e8f0', margin: '0 0 6px' }}>{person.name}</h1>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
+            <RelationshipTypeEditor
+              personId={person.id}
+              current={(person.relationship_type ?? 'networking') as PersonRelationshipType}
+            />
             {rel?.stage && (
               <span style={{
                 fontSize: 11, fontWeight: 600,
@@ -126,6 +126,11 @@ export default async function PersonPage({ params }: { params: { id: string } })
               </span>
             )}
           </div>
+          {(person.role || person.organization) && (
+            <span style={{ color: '#64748b', fontSize: 13 }}>
+              {[person.role, person.organization].filter(Boolean).join(' · ')}
+            </span>
+          )}
           {person.email && (
             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#475569' }}>{person.email}</p>
           )}

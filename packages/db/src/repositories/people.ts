@@ -22,7 +22,7 @@ export async function updatePerson(
   id: string,
   data: Partial<Pick<DbPerson,
     'name' | 'email' | 'phone' | 'organization' | 'role' |
-    'linkedin_url' | 'avatar_url' | 'notes' | 'tags' | 'language'
+    'linkedin_url' | 'avatar_url' | 'notes' | 'tags' | 'language' | 'relationship_type'
   >>
 ): Promise<DbPerson> {
   const { data: person, error } = await getSupabaseClient()
