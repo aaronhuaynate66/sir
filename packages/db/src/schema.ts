@@ -78,6 +78,12 @@ export interface DbSignal {
 export type RelationshipType = 'personal' | 'professional' | 'family';
 export type RelationshipStage = 'prospect' | 'active' | 'strategic' | 'dormant';
 
+export interface CycleData {
+  detected:          boolean;
+  last_period_start: string | null; // YYYY-MM-DD
+  notes:             string | null;
+}
+
 export interface WorkHistoryEntry {
   role:    string;
   company: string;
@@ -112,6 +118,8 @@ export interface DbPerson {
   location: string | null;
   education: string | null;
   work_history: WorkHistoryEntry[] | null;
+  cycle_data: CycleData | null;
+  sensitive_context: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -135,7 +143,8 @@ export interface DbRelationship {
 export type InsertPerson = Pick<DbPerson, 'user_id' | 'name'> &
   Partial<Pick<DbPerson, 'email' | 'phone' | 'organization' | 'role' |
     'linkedin_url' | 'instagram_url' | 'avatar_url' | 'notes' | 'tags' | 'language' |
-    'relationship_type' | 'birthday' | 'anniversary' | 'location' | 'education' | 'work_history'>>;
+    'relationship_type' | 'birthday' | 'anniversary' | 'location' | 'education' |
+    'work_history' | 'cycle_data' | 'sensitive_context'>>;
 
 export type InsertRelationship = Pick<DbRelationship, 'user_id' | 'person_id'> &
   Partial<Pick<DbRelationship, 'strength' | 'reciprocity' | 'trust_score' |

@@ -194,6 +194,8 @@ export default async function PersonPage({ params }: { params: { id: string } })
               anniversary:   person.anniversary   ?? null,
               notes:         person.notes         ?? null,
               work_history:  person.work_history  ?? null,
+              cycle_data:    person.cycle_data    ?? null,
+              sensitive_context: person.sensitive_context ?? null,
               relationship_type: person.relationship_type,
             }}
           />

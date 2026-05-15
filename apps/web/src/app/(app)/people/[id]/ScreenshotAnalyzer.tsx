@@ -274,6 +274,56 @@ export default function ScreenshotAnalyzer({ personId, personName, existingValue
               </div>
             )}
 
+            {/* WhatsApp-specific section */}
+            {result.type === 'whatsapp' && (confirmed.conversation_tone || confirmed.emotional_state || confirmed.topics?.length || confirmed.cycle_data) && (
+              <div style={{ marginBottom: 20, background: '#25d36614', border: '1px solid #25d36630', borderRadius: 10, padding: '12px 14px' }}>
+                <span style={{ fontSize: 11, color: '#25d366', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 10 }}>
+                  WhatsApp — Contexto de conversación
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {confirmed.conversation_tone && (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span style={{ fontSize: 11, color: '#64748b', minWidth: 80 }}>Tono</span>
+                      <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>{confirmed.conversation_tone}</span>
+                    </div>
+                  )}
+                  {confirmed.emotional_state && (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span style={{ fontSize: 11, color: '#64748b', minWidth: 80 }}>Estado</span>
+                      <span style={{ fontSize: 12, color: '#94a3b8' }}>{confirmed.emotional_state}</span>
+                    </div>
+                  )}
+                  {confirmed.last_interaction_quality && (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span style={{ fontSize: 11, color: '#64748b', minWidth: 80 }}>Calidad</span>
+                      <span style={{ fontSize: 12, color: '#94a3b8' }}>{confirmed.last_interaction_quality}</span>
+                    </div>
+                  )}
+                  {confirmed.topics && confirmed.topics.length > 0 && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                      {confirmed.topics.map((t, i) => (
+                        <span key={i} style={{ fontSize: 11, background: '#1e2130', border: '1px solid #2a2d3e', borderRadius: 6, padding: '2px 8px', color: '#818cf8' }}>
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {confirmed.cycle_data?.detected && (
+                    <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, background: '#f8717122', color: '#f87171', borderRadius: 6, padding: '2px 8px' }}>
+                        Ciclo detectado
+                      </span>
+                      {confirmed.cycle_data.last_period_start && (
+                        <span style={{ fontSize: 11, color: '#64748b' }}>
+                          Inicio: {confirmed.cycle_data.last_period_start}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setResult(null)}

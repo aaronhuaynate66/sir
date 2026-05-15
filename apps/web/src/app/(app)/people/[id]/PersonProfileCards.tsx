@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { updatePersonExtraFieldsAction } from '@/app/(app)/actions';
-import type { WorkHistoryEntry } from '@sir/db';
+import { updatePersonExtraFieldsAction, updateCycleDataAction } from '@/app/(app)/actions';
+import type { WorkHistoryEntry, CycleData } from '@sir/db';
 
 export interface PersonCardData {
   id:            string;
@@ -16,6 +16,8 @@ export interface PersonCardData {
   anniversary:   string | null;
   notes:         string | null;
   work_history:  WorkHistoryEntry[] | null;
+  cycle_data:    CycleData | null;
+  sensitive_context: Record<string, unknown> | null;
   relationship_type: string;
 }
 
@@ -23,7 +25,35 @@ interface Props {
   person: PersonCardData;
 }
 
-type CardKey = 'professional' | 'social' | 'dates' | 'notes';
+type CardKey = 'professional' | 'social' | 'dates' | 'notes' | 'cycle';
+
+// ─── Cycle phase helper ───────────────────────────────────────────────────────
+
+interface CyclePhase {
+  name:           string;
+  days:           string;
+  recommendation: string;
+  color:          string;
+}
+
+function getCyclePhase(lastPeriodStart: string): CyclePhase & { dayOfCycle: number } {
+  const start = new Date(lastPeriodStart + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dayOfCycle = Math.floor((today.getTime() - start.getTime()) / 86_400_000) % 28 + 1;
+
+  let phase: CyclePhase;
+  if (dayOfCycle <= 5) {
+    phase = { name: 'Menstrual', days: '1–5', recommendation: 'Momentos de calma y cuidado.', color: '#f87171' };
+  } else if (dayOfCycle <= 13) {
+    phase = { name: 'Folicular', days: '6–13', recommendation: 'Alta energía y apertura.', color: '#34d399' };
+  } else if (dayOfCycle === 14) {
+    phase = { name: 'Ovulación', days: '14', recommendation: 'Comunicación fluida.', color: '#fbbf24' };
+  } else {
+    phase = { name: 'Lútea', days: '15–28', recommendation: 'Prefiere estabilidad.', color: '#818cf8' };
+  }
+  return { ...phase, dayOfCycle };
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -130,6 +160,10 @@ export default function PersonProfileCards({ person }: Props) {
     anniversary: person.anniversary ?? '',
   });
   const [notesEdit, setNotesEdit] = useState(person.notes ?? '');
+  const [cycleEdit, setCycleEdit] = useState({
+    last_period_start: person.cycle_data?.last_period_start ?? '',
+    notes:             person.cycle_data?.notes             ?? '',
+  });
 
   // Derive current values from edit state when editing, otherwise from person
   const prof   = editingCard === 'professional' ? profEdit   : { role: person.role ?? '', organization: person.organization ?? '', location: person.location ?? '', education: person.education ?? '' };
@@ -143,6 +177,7 @@ export default function PersonProfileCards({ person }: Props) {
     if (card === 'social')       setSocialEdit({ linkedin_url: person.linkedin_url ?? '', instagram_url: person.instagram_url ?? '' });
     if (card === 'dates')        setDatesEdit({ birthday: person.birthday ?? '', anniversary: person.anniversary ?? '' });
     if (card === 'notes')        setNotesEdit(person.notes ?? '');
+    if (card === 'cycle')        setCycleEdit({ last_period_start: person.cycle_data?.last_period_start ?? '', notes: person.cycle_data?.notes ?? '' });
     setErrMsg(null);
     setEditingCard(card);
   }
@@ -164,14 +199,20 @@ export default function PersonProfileCards({ person }: Props) {
   const hasSocial       = !!(person.linkedin_url || person.instagram_url);
   const hasDates        = !!(person.birthday || person.anniversary);
   const hasNotes        = !!person.notes;
+  const isPersonalOrFamily = person.relationship_type === 'personal' || person.relationship_type === 'family';
+  const hasCycle        = isPersonalOrFamily && !!person.cycle_data;
 
   const daysBirthday    = person.birthday    ? daysUntil(person.birthday)    : null;
   const daysAnniversary = person.anniversary ? daysUntil(person.anniversary) : null;
 
+  const cyclePhase = (hasCycle && person.cycle_data?.last_period_start)
+    ? getCyclePhase(person.cycle_data.last_period_start)
+    : null;
+
   const [showAllWork, setShowAllWork] = useState(false);
   const visibleWork = showAllWork ? workEntries : workEntries.slice(0, 2);
 
-  if (!hasProfessional && !hasSocial && !hasDates && !hasNotes) return null;
+  if (!hasProfessional && !hasSocial && !hasDates && !hasNotes && !hasCycle) return null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -325,6 +366,78 @@ export default function PersonProfileCards({ person }: Props) {
           <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
             {notes}
           </p>
+        </Card>
+      )}
+
+      {/* ── Contexto privado (cycle data) ── */}
+      {hasCycle && (
+        <Card
+          title="Contexto privado"
+          editing={editingCard === 'cycle'}
+          onEdit={() => startEdit('cycle')}
+          onSave={() => {
+            start(async () => {
+              const res = await updateCycleDataAction(person.id, {
+                detected:          true,
+                last_period_start: cycleEdit.last_period_start || null,
+                notes:             cycleEdit.notes             || null,
+              });
+              if (res.error) { setErrMsg(res.error); return; }
+              setEditingCard(null);
+            });
+          }}
+          onCancel={() => setEditingCard(null)}
+          isPending={isPending}
+          editChildren={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <TextField
+                label="Inicio del último período"
+                value={cycleEdit.last_period_start}
+                onChange={v => setCycleEdit(p => ({ ...p, last_period_start: v }))}
+                type="date"
+              />
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={labelStyle}>Notas</span>
+                <textarea
+                  value={cycleEdit.notes}
+                  onChange={e => setCycleEdit(p => ({ ...p, notes: e.target.value }))}
+                  rows={2}
+                  style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+                />
+              </label>
+            </div>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {cyclePhase && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
+                    color: cyclePhase.color,
+                    background: cyclePhase.color + '22',
+                    borderRadius: 6, padding: '2px 8px', textTransform: 'uppercase',
+                  }}>
+                    Fase {cyclePhase.name}
+                  </span>
+                  <span style={{ fontSize: 11, color: '#475569' }}>
+                    Día {cyclePhase.dayOfCycle} · días {cyclePhase.days}
+                  </span>
+                </div>
+                <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>
+                  {cyclePhase.recommendation}
+                </p>
+              </div>
+            )}
+            {person.cycle_data?.last_period_start && !cyclePhase && (
+              <DataRow icon="📅" value={`Inicio: ${formatDateES(person.cycle_data.last_period_start)}`} />
+            )}
+            {person.cycle_data?.notes && (
+              <p style={{ margin: 0, fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>
+                {person.cycle_data.notes}
+              </p>
+            )}
+          </div>
         </Card>
       )}
     </div>

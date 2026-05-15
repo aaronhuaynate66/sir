@@ -7,9 +7,11 @@ import {
   findRelationshipByPersonId,
   createRelationship,
   updateRelationship,
+  updatePerson,
   createMemory,
   createSignal,
 } from '@sir/db';
+import type { CycleData } from '@sir/db';
 import { handleCreateSignal } from '@/handlers/signals';
 import type { AnalysisResult } from '@/app/api/people/[id]/analyze-screenshot/route';
 
@@ -164,7 +166,7 @@ export async function confirmScreenshotAction(
     // Fetch existing person to merge — never overwrite already-set fields
     const { data: existing } = await db
       .from('people')
-      .select('role, organization, location, education, linkedin_url, instagram_url, birthday, anniversary, notes, work_history, email, phone')
+      .select('role, organization, location, education, linkedin_url, instagram_url, birthday, anniversary, notes, work_history, email, phone, cycle_data')
       .eq('id', personId)
       .eq('user_id', user.id)
       .maybeSingle();
@@ -273,7 +275,52 @@ export async function confirmScreenshotAction(
       );
     }
 
+    // WhatsApp: cycle data — save to people record (merge: only if not already set)
+    if (result.type === 'whatsapp' && confirmedData.cycle_data?.detected) {
+      const existingCycle = ep['cycle_data'] as CycleData | null;
+      if (!existingCycle?.detected) {
+        const { error: cycleErr } = await db
+          .from('people')
+          .update({ cycle_data: confirmedData.cycle_data })
+          .eq('id', personId)
+          .eq('user_id', user.id);
+        if (cycleErr) console.error('cycle_data update failed:', cycleErr.message);
+      }
+    }
+
+    // WhatsApp: emotional memory
+    if (result.type === 'whatsapp' && (confirmedData.conversation_tone || confirmedData.emotional_state)) {
+      const parts: string[] = [];
+      if (confirmedData.conversation_tone) parts.push(`Tono: ${confirmedData.conversation_tone}`);
+      if (confirmedData.emotional_state)   parts.push(`Estado emocional: ${confirmedData.emotional_state}`);
+      if (confirmedData.last_interaction_quality) parts.push(`Calidad: ${confirmedData.last_interaction_quality}`);
+      memoryOps.push(
+        createMemory({
+          user_id:    user.id,
+          layer:      'emotional',
+          content:    `[WhatsApp con ${personName}] ${parts.join(' · ')}`,
+          importance: 65,
+        }).catch(() => undefined)
+      );
+    }
+
     await Promise.all(memoryOps);
+
+    // WhatsApp: signal per topic
+    if (result.type === 'whatsapp' && confirmedData.topics?.length) {
+      for (const topic of confirmedData.topics) {
+        await createSignal({
+          user_id: user.id,
+          type:    'insight',
+          payload: {
+            person_id:   personId,
+            person_name: personName,
+            source:      'screenshot_whatsapp',
+            topic,
+          },
+        }).catch(() => undefined);
+      }
+    }
 
     // Signal
     await createSignal({
@@ -292,6 +339,23 @@ export async function confirmScreenshotAction(
     return {};
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Error al confirmar' };
+  }
+}
+
+// ── Cycle Data ────────────────────────────────────────────────────────────────
+
+export async function updateCycleDataAction(
+  personId: string,
+  cycleData: CycleData | null,
+): Promise<ActionResult> {
+  const user = await getAuthUser();
+  if (!user) return { error: 'No autenticado' };
+  try {
+    await updatePerson(personId, { cycle_data: cycleData });
+    revalidatePath(`/people/${personId}`);
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Error al actualizar' };
   }
 }
 

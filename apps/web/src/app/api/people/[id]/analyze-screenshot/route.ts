@@ -1,5 +1,5 @@
 import { getAuthUser, getServiceClient } from '@/lib/supabase-server';
-import type { WorkHistoryEntry } from '@sir/db';
+import type { WorkHistoryEntry, CycleData } from '@sir/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,21 +14,27 @@ interface AnalyzeBody {
 export interface AnalysisResult {
   type:     'linkedin' | 'instagram' | 'whatsapp' | 'unknown';
   data: {
-    name?:          string | null;
-    role?:          string | null;
-    organization?:  string | null;
-    email?:         string | null;
-    phone?:         string | null;
-    linkedin_url?:  string | null;
-    instagram_url?: string | null;
-    birthday?:      string | null; // YYYY-MM-DD
-    anniversary?:   string | null; // YYYY-MM-DD
-    location?:      string | null;
-    education?:     string | null;
-    connections?:   number | null;
-    work_history?:  WorkHistoryEntry[] | null;
-    notes?:         string | null;
-    raw_summary?:   string | null;
+    name?:                    string | null;
+    role?:                    string | null;
+    organization?:            string | null;
+    email?:                   string | null;
+    phone?:                   string | null;
+    linkedin_url?:            string | null;
+    instagram_url?:           string | null;
+    birthday?:                string | null; // YYYY-MM-DD
+    anniversary?:             string | null; // YYYY-MM-DD
+    location?:                string | null;
+    education?:               string | null;
+    connections?:             number | null;
+    work_history?:            WorkHistoryEntry[] | null;
+    notes?:                   string | null;
+    raw_summary?:             string | null;
+    // WhatsApp-specific
+    conversation_tone?:       string | null;
+    emotional_state?:         string | null;
+    topics?:                  string[] | null;
+    last_interaction_quality?: string | null;
+    cycle_data?:              CycleData | null;
   };
 }
 
@@ -56,9 +62,22 @@ Required JSON structure:
     "work_history": [
       { "role": "...", "company": "...", "period": "..." }
     ] or null,
-    "notes": "brief qualitative summary only — do NOT include location, education, work history or connections here",
+    "notes": "brief qualitative summary only — do NOT include location, education, work history, connections, or cycle/menstrual info here",
     "raw_summary": "one sentence describing what you see"
   }
+}
+
+If the platform is "whatsapp", also include these additional fields inside "data":
+{
+  "conversation_tone": "warm" | "neutral" | "tense" | "distant" | null,
+  "emotional_state": brief description of detected emotional state or null,
+  "topics": ["topic1", "topic2"] or null,
+  "last_interaction_quality": "positive" | "neutral" | "negative" | null,
+  "cycle_data": {
+    "detected": true | false,
+    "last_period_start": "YYYY-MM-DD" or null,
+    "notes": string or null
+  } or null
 }
 
 Rules:
@@ -66,12 +85,13 @@ Rules:
 - education: most recent or most prominent institution (e.g. "Universidad Marcelino Champagnat")
 - connections: numeric count if visible (e.g. 55), otherwise null
 - work_history: extract ALL job entries visible, each with role, company, and period (e.g. "oct. 2025 - present")
-- notes: ONLY qualitative observations not captured by other fields. Never put location/education/work/connections in notes.
+- notes: ONLY qualitative observations not captured by other fields. Never put location/education/work/connections/cycle info in notes.
 - birthday/anniversary: only if explicitly shown. Format YYYY-MM-DD; use 2000 as year if only month/day visible.
 - linkedin_url: build from username if visible (https://linkedin.com/in/username)
 - instagram_url: build from handle if visible (https://instagram.com/handle)
+- cycle_data: set detected=true only if the conversation explicitly mentions menstrual cycle, period, or menstruation. Extract last_period_start date if mentioned. Do NOT infer or assume cycle info.
 - Return ONLY the JSON object.
-- IMPORTANT: Always respond in Spanish. All text fields including notes, summaries, descriptions, role titles, and period labels must be in Spanish.`;
+- IMPORTANT: Always respond in Spanish. All text fields including notes, summaries, descriptions, role titles, period labels, emotional_state, and topics must be in Spanish.`;
 
 export async function POST(
   req: Request,
