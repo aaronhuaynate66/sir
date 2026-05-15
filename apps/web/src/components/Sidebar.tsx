@@ -16,7 +16,7 @@ function buildNav(unreadCount: number): NavItem[] {
   return [
     { href: '/dashboard',     label: 'Dashboard', icon: '⊞' },
     { href: '/people',        label: 'Personas',  icon: '◎' },
-    { href: '/graph',         label: 'Grafo',     icon: '◯' },
+    { href: '/grafo',         label: 'Grafo',     icon: '◯' },
     { href: '/signals',       label: 'Señales',   icon: '◆' },
     { href: '/memories',      label: 'Memorias',  icon: '◈' },
     { href: '/state',         label: 'Estado',    icon: '◉' },
