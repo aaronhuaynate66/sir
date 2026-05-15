@@ -8,6 +8,8 @@ Versión en producción: `d0fbcfb` — smart summary + split notes by life area
 
 **Nota 2026-05-15 (URL taxonomy):** URL taxonomy implemented. Rutas limpias: /red, /red/[slug], /memorias, /senales, /estado, /inicio. Slug generado en createPersonAction con deduplicación. UUID-vs-slug dual lookup en /red/[slug]/page.tsx con redirect canónico. Redirects 301 en next.config.mjs para todas las rutas antiguas. Migración 20260515000009_people_slug.sql creada (pendiente de aplicar en Supabase).
 
+**Nota 2026-05-15 (Executive Mode):** Executive Intelligence Mode ✅ completo. Layout con paywall para plan free. 4 sub-páginas: /executive/stakeholders (ReactFlow graph estratégico+profesional con ranking y panel lateral), /executive/pipeline (Kanban DnD HTML5, 4 columnas, server action updatePersonStage), /executive/capital (Score 0-100 ponderado: estratégicas 40%+fuerza 30%+interacciones 20%-penalización 10%), /executive/reporte (stats semanales + AI report via /api/executive/report con Claude). Sidebar tab nav con usePathname.
+
 ## URLs de producción
 - Web: https://sir-web.vercel.app
 - Admin: https://sir-admin.vercel.app
@@ -15,9 +17,9 @@ Versión en producción: `d0fbcfb` — smart summary + split notes by life area
 
 ## Progreso general
 ```
-█████████████████████████ 21/21 módulos completados (100%)
+██████████████████████████ 22/22 módulos completados (100%)
 ```
-✅ Completo: 21 | 🔄 Parcial: 0 | ⬜ Pendiente: 0
+✅ Completo: 22 | 🔄 Parcial: 0 | ⬜ Pendiente: 0
 
 ---
 

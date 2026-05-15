@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import { getAuthUser, getServiceClient } from '@/lib/supabase-server';
-import { requirePro } from '@/lib/subscription';
 import ExecutiveBriefingWidget from './ExecutiveBriefingWidget';
 
 export const dynamic = 'force-dynamic';
@@ -74,8 +73,6 @@ async function getExecutiveData(userId: string) {
 export default async function ExecutivePage() {
   const user = await getAuthUser();
   if (!user) redirect('/login');
-  await requirePro();
-
   const data = await getExecutiveData(user.id);
   const totalSignals = Object.values(data.signalCounts).reduce((a, b) => a + b, 0);
   const weekStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
