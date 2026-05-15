@@ -4,7 +4,7 @@
 Última actualización: 2026-05-15
 Versión en producción: `d0fbcfb` — smart summary + split notes by life area
 
-**Nota 2026-05-15 (última sesión):** Módulo 21 — Analytics Event System. Paquete @sir/analytics con 22 eventos tipados, trackServerEvent (Supabase), GoogleAnalytics GA4 en root layout, helper gtag() en lib/analytics.ts. Integración en briefing/signals/human-state/actions/pages. Admin /analytics mejorado: top 10 eventos, briefings+costo hoy, screenshots hoy, tabla eventos recientes. Migraciones pendientes de aplicar: 000005-000007.
+**Nota 2026-05-15 (última sesión):** Módulo 22 — Security Layer + Privacy Controls. RLS verificado en todas las tablas, audit_log creado. Rate limiting Supabase (20 AI calls/hora) + plan limits (free: 5 briefings total, individual/pro: 50/mes) wired en /api/briefing, /api/signals/capture, /api/human-state. GDPR: GET /api/user/export (ZIP con 9 JSONs) y DELETE /api/user/me (con confirm:true, cascade). Migraciones pendientes de aplicar: 000005-000008.
 
 ## URLs de producción
 - Web: https://sir-web.vercel.app
@@ -393,6 +393,28 @@ Construye el Executive Mode — vista de alto nivel para usuarios premium.
 - [x] Llamadas en briefing, signals, human-state, actions, people/[id], grafo
 - [x] Admin analytics page con métricas requeridas
 - [x] Tests pasan
+
+---
+
+## Módulo 22 — Security Layer + Privacy Controls ✅
+
+**Estado:** ✅ Completo
+**Commit:** (2026-05-15)
+**Descripción:** Capa de seguridad robusta para datos sensibles (cycle_data, notes_personal, sensitive_context).
+**Componentes:**
+- `20260515000008_security_layer.sql` — tabla `audit_log` + RLS forzado en todas las tablas
+- `lib/ratelimit.ts` — `checkAIHourlyLimit` (20/hr vía Supabase analytics_events) + `checkBriefingMonthlyLimit` (free: 5 total, individual/pro: 50/mes)
+- `/api/briefing` — per-minute + hourly + plan limits
+- `/api/signals/capture` — per-minute + hourly limits
+- `/api/human-state` — per-minute + hourly limits
+- `GET /api/user/export` — ZIP con 9 JSONs (profile, people, relationships, memories, signals, briefings, states, analytics, notifications) + log en audit_log
+- `DELETE /api/user/me` — eliminación con `confirm:true`, cascade a toda la data + auth.users
+**Verificación:**
+- [x] RLS activo en 10 tablas
+- [x] 20 AI calls/hora por usuario via Supabase
+- [x] Plan limits: free 5 total, individual/pro 50/mes
+- [x] GDPR export: ZIP descargable con toda la data
+- [x] GDPR delete: eliminación permanente con confirmación
 
 ---
 

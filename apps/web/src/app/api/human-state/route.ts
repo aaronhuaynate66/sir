@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getUserFromRequest, AuthError } from '@/lib/auth';
 import { getServiceClient } from '@/lib/supabase-server';
 import { trackServerEvent, EVENTS } from '@sir/analytics';
-import { checkRateLimit } from '@/lib/ratelimit';
+import { checkRateLimit, checkAIHourlyLimit } from '@/lib/ratelimit';
 import { humanStateSchema } from '@/lib/schemas';
 
 export const runtime = 'nodejs';
@@ -46,6 +46,11 @@ export async function POST(req: Request): Promise<NextResponse> {
     const rateLimitRes = await checkRateLimit(userId, 30, '1 m');
     if (rateLimitRes) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
 
+    const db = getServiceClient();
+
+    const hourlyRes = await checkAIHourlyLimit(userId, db);
+    if (hourlyRes) return NextResponse.json({ error: 'Límite de IA: 20 requests por hora' }, { status: 429 });
+
     const raw   = await req.json().catch(() => ({})) as unknown;
     const parse = humanStateSchema.safeParse(raw);
     if (!parse.success) {
@@ -62,7 +67,7 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     const scores = calculateScores(body);
 
-    const { data, error } = await getServiceClient()
+    const { data, error } = await db
       .from('human_state_logs')
       .insert({
         user_id:        userId,

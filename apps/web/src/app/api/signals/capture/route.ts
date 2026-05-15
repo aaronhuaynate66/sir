@@ -1,6 +1,6 @@
 import { getAuthUser, getServiceClient } from '@/lib/supabase-server';
 import { trackServerEvent, EVENTS } from '@sir/analytics';
-import { checkRateLimit } from '@/lib/ratelimit';
+import { checkRateLimit, checkAIHourlyLimit } from '@/lib/ratelimit';
 import { captureSignalSchema } from '@/lib/schemas';
 import { costTracker } from '@sir/ai';
 import type { SocialSignalType } from '@sir/db';
@@ -105,6 +105,11 @@ export async function POST(req: Request): Promise<Response> {
     const rateLimitRes = await checkRateLimit(user.id, 10, '1 m');
     if (rateLimitRes) return rateLimitRes;
 
+    const db = getServiceClient();
+
+    const hourlyRes = await checkAIHourlyLimit(user.id, db);
+    if (hourlyRes) return hourlyRes;
+
     const raw   = await req.json().catch(() => ({})) as unknown;
     const parse = captureSignalSchema.safeParse(raw);
     if (!parse.success) {
@@ -112,7 +117,6 @@ export async function POST(req: Request): Promise<Response> {
     }
     const { content, person_id: bodyPersonId } = parse.data;
 
-    const db = getServiceClient();
     let personId: string | null = bodyPersonId ?? null;
 
     // ── AI extraction ─────────────────────────────────────────────────────────

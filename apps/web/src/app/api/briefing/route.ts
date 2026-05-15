@@ -1,6 +1,6 @@
 import { getServiceClient, getAuthUser } from '@/lib/supabase-server';
 import { trackServerEvent, EVENTS } from '@sir/analytics';
-import { checkRateLimit } from '@/lib/ratelimit';
+import { checkRateLimit, checkAIHourlyLimit, checkBriefingMonthlyLimit } from '@/lib/ratelimit';
 import { costTracker } from '@sir/ai';
 import type { DbPerson, DbRelationship } from '@sir/db';
 
@@ -204,14 +204,20 @@ export async function POST(req: Request): Promise<Response> {
     const rateLimitRes = await checkRateLimit(authUser.id, 5, '1 m');
     if (rateLimitRes) return rateLimitRes;
 
+    const db = getServiceClient();
+
+    const hourlyRes  = await checkAIHourlyLimit(authUser.id, db);
+    if (hourlyRes) return hourlyRes;
+
+    const monthlyRes = await checkBriefingMonthlyLimit(authUser.id, db);
+    if (monthlyRes) return monthlyRes;
+
     const body     = await req.json() as { personId?: string };
     const personId = body.personId;
 
     if (!personId) {
       return Response.json({ error: 'personId required' }, { status: 400 });
     }
-
-    const db = getServiceClient();
 
     // Fetch person + relationship in parallel
     const [personRes, relRes] = await Promise.all([
