@@ -93,8 +93,14 @@ export async function POST(): Promise<Response> {
     nameToPersonId.set(p.name.toLowerCase().trim(), entry);
   }
 
+  console.log('[gmail-sync] Total people loaded:', (people ?? []).length);
+  console.log('[gmail-sync] People with email:', emailToPersonId.size);
+  console.log('[gmail-sync] People with name:', nameToPersonId.size);
+  console.log('[gmail-sync] Sample people emails:', Array.from(emailToPersonId.keys()).slice(0, 5));
+
   // Track email updates needed for name-matched people without email in DB
   const emailUpdates = new Map<string, string>(); // personId → email
+  const senderEmails = new Set<string>(); // collected for debug
 
   // List messages from last 6 months (max 200)
   const sixMonthsAgo = new Date();
@@ -147,6 +153,7 @@ export async function POST(): Promise<Response> {
       const cName      = parseName(contactRaw);
 
       if (!cEmail || cEmail === userEmail) continue;
+      senderEmails.add(cEmail);
 
       // Match by email first, then fall back to name
       const personEntry = emailToPersonId.get(cEmail)
@@ -180,6 +187,10 @@ export async function POST(): Promise<Response> {
       void cName; // name already resolved from DB
     }
   }
+
+  console.log('[gmail-sync] Unique sender emails in messages:', senderEmails.size);
+  console.log('[gmail-sync] Sample sender emails:', Array.from(senderEmails).slice(0, 5));
+  console.log('[gmail-sync] Matched contacts:', contactMap.size);
 
   // Backfill emails for name-matched people that had no email in DB
   if (emailUpdates.size > 0) {
