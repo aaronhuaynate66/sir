@@ -68,14 +68,27 @@ export default async function PeoplePage({
 
   const [{ data: peopleData }, { data: relsData }] = await Promise.all([
     peopleQuery,
-    db.from('relationships').select('person_id, strength, stage').eq('user_id', user.id),
+    db.from('relationships').select('person_id, strength, stage, last_contact_at, contact_frequency_days').eq('user_id', user.id),
   ]);
 
   const people = (peopleData ?? []) as (DbPerson & { relationship_type: PersonRelationshipType })[];
   const relMap = new Map(
-    ((relsData ?? []) as Array<{ person_id: string; strength: number; stage: string }>)
+    ((relsData ?? []) as Array<{ person_id: string; strength: number; stage: string; last_contact_at: string | null; contact_frequency_days: number | null }>)
       .map(r => [r.person_id, r])
   );
+
+  function healthDotColor(personId: string): string {
+    const rel = relMap.get(personId);
+    if (!rel) return '#334155'; // no data
+    let freqScore = 50;
+    if (rel.last_contact_at) {
+      const days = (Date.now() - new Date(rel.last_contact_at).getTime()) / 86_400_000;
+      const expected = rel.contact_frequency_days ?? 30;
+      freqScore = Math.max(0, Math.min(100, 100 - (days / expected) * 50));
+    }
+    const score = Math.round(freqScore * 0.4 + (rel.strength ?? 50) * 0.6);
+    return score >= 70 ? '#34d399' : score >= 40 ? '#fbbf24' : '#f87171';
+  }
 
   const activeFilter = typeFilter || 'all';
 
@@ -88,7 +101,12 @@ export default async function PeoplePage({
             {people.length} contacto{people.length !== 1 ? 's' : ''} en tu red
           </p>
         </div>
-        <NewPersonButton />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Link href="/red/salud" style={{ color: '#818cf8', fontSize: 12, textDecoration: 'none', padding: '5px 10px', border: '1px solid #2a2d3e', borderRadius: 6 }}>
+            Ver salud →
+          </Link>
+          <NewPersonButton />
+        </div>
       </div>
 
       {/* Filter chips */}
@@ -180,9 +198,15 @@ export default async function PeoplePage({
                     {initials(person.name)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {person.name}
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 1 }}>
+                      <div title="Salud relacional" style={{
+                        width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                        background: healthDotColor(person.id),
+                      }} />
+                      <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {person.name}
+                      </p>
+                    </div>
                     {person.organization || person.role ? (
                       <p style={{ margin: 0, fontSize: 12, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {[person.role, person.organization].filter(Boolean).join(' · ')}
