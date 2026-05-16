@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 
 interface Meta {
   inputTokens:  number;
@@ -76,6 +76,10 @@ export default function BriefingButton({ personName, personId, history = [] }: P
   const [error,     setError]     = useState('');
   const [sections,  setSections]  = useState<Section[]>([]);
   const [tab,       setTab]       = useState<'briefing' | 'history'>('briefing');
+  const [displayTime, setDisplayTime] = useState('');
+  useEffect(() => {
+    setDisplayTime(new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }));
+  }, [meta]);
 
   const generate = useCallback(async () => {
     setStreaming(true);
@@ -270,7 +274,7 @@ export default function BriefingButton({ personName, personId, history = [] }: P
                   Costo: {formatCost(meta.costUsd)}
                 </span>
                 <span style={{ fontSize: 11, color: '#334155' }}>
-                  {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                  {displayTime}
                 </span>
               </div>
             )}

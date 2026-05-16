@@ -85,7 +85,7 @@ export default async function ExecutivePage() {
           <h1 style={{ fontSize: 26, fontWeight: 700, color: '#e2e8f0', margin: 0 }}>Executive Mode</h1>
           <span style={{ background: '#6366f133', color: '#818cf8', border: '1px solid #6366f144', borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>PRO</span>
         </div>
-        <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>Vista semanal · {weekStr}</p>
+        <p style={{ color: '#64748b', fontSize: 14, margin: 0 }} suppressHydrationWarning>Vista semanal · {weekStr}</p>
       </div>
 
       {/* AI Executive Briefing */}

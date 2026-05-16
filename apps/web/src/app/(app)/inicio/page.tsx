@@ -223,7 +223,7 @@ export default async function DashboardPage() {
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 28 }}>
         <div>
           <h1 style={{ fontSize: 26, fontWeight: 700, color: '#e2e8f0', margin: '0 0 4px' }}>Dashboard</h1>
-          <p style={{ color: '#64748b', fontSize: 14, margin: 0, textTransform: 'capitalize' }}>{todayStr}</p>
+          <p style={{ color: '#64748b', fontSize: 14, margin: 0, textTransform: 'capitalize' }} suppressHydrationWarning>{todayStr}</p>
         </div>
         {data.humanState ? (
           <Link href="/estado" style={{

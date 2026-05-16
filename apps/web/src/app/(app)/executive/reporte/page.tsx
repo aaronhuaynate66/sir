@@ -37,7 +37,7 @@ export default async function ReportePage() {
     <div style={{ maxWidth: 760 }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#e2e8f0', margin: '0 0 4px' }}>Reporte Semanal</h1>
-        <p style={{ color: '#64748b', fontSize: 13, margin: 0, textTransform: 'capitalize' }}>{weekStr}</p>
+        <p style={{ color: '#64748b', fontSize: 13, margin: 0, textTransform: 'capitalize' }} suppressHydrationWarning>{weekStr}</p>
       </div>
 
       {/* Stats grid */}
