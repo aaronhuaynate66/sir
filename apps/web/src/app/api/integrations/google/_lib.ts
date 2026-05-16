@@ -10,6 +10,8 @@ export interface GoogleIntegration {
   last_sync_at: string | null;
   contacts_synced: number;
   events_synced: number;
+  emails_synced: number;
+  gmail_last_sync_at: string | null;
   created_at: string;
 }
 

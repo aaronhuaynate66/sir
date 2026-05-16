@@ -1,14 +1,18 @@
 import { redirect } from 'next/navigation';
 import { getAuthUser, getServiceClient } from '@/lib/supabase-server';
 import GoogleCard from './GoogleCard';
+import GmailCard from './GmailCard';
 
 export const dynamic = 'force-dynamic';
 
 interface GoogleIntegrationRow {
-  access_token:    string | null;
-  last_sync_at:    string | null;
-  contacts_synced: number;
-  events_synced:   number;
+  access_token:       string | null;
+  scopes:             string[];
+  last_sync_at:       string | null;
+  contacts_synced:    number;
+  events_synced:      number;
+  emails_synced:      number;
+  gmail_last_sync_at: string | null;
 }
 
 export default async function IntegracionesPage() {
@@ -17,11 +21,12 @@ export default async function IntegracionesPage() {
 
   const { data } = await getServiceClient()
     .from('google_integrations')
-    .select('access_token, last_sync_at, contacts_synced, events_synced')
+    .select('access_token, scopes, last_sync_at, contacts_synced, events_synced, emails_synced, gmail_last_sync_at')
     .eq('user_id', user.id)
     .single();
 
   const row = data as GoogleIntegrationRow | null;
+  const scopes = row?.scopes ?? [];
 
   return (
     <div style={{ maxWidth: 640 }}>
@@ -41,9 +46,15 @@ export default async function IntegracionesPage() {
         eventsSynced={row?.events_synced ?? 0}
       />
 
+      <GmailCard
+        connected={scopes.includes('gmail.readonly')}
+        emailsSynced={row?.emails_synced ?? 0}
+        lastSyncAt={row?.gmail_last_sync_at ?? null}
+      />
+
       {/* Coming soon */}
       <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {(['Gmail', 'WhatsApp Export', 'Outlook', 'iCloud Contacts'] as const).map(name => (
+        {(['WhatsApp Export', 'Outlook', 'iCloud Contacts'] as const).map(name => (
           <div key={name} style={{
             background: '#1a1d27',
             border: '1px solid #2a2d3e',

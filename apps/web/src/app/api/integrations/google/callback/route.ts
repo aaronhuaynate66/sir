@@ -44,6 +44,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     access_token?: string;
     refresh_token?: string;
     expires_in?: number;
+    scope?: string;
     error?: string;
   };
 
@@ -61,7 +62,10 @@ export async function GET(req: NextRequest): Promise<Response> {
         access_token:  tokens.access_token,
         refresh_token: tokens.refresh_token ?? null,
         token_expiry:  expiry.toISOString(),
-        scopes:        ['contacts.readonly', 'calendar.readonly'],
+        scopes: (tokens.scope ?? 'contacts.readonly calendar.readonly')
+          .split(' ')
+          .map((s: string) => { const p = s.split('/auth/'); return p.length > 1 ? (p[1] ?? s) : s; })
+          .filter(Boolean),
       },
       { onConflict: 'user_id' }
     );
