@@ -14,6 +14,15 @@ interface HistoryItem {
   contacts: ImportEntry[];
 }
 
+async function readFileAsText(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  const b = new Uint8Array(buf.slice(0, 4));
+  // Detect UTF-16 BOM
+  if (b[0] === 0xFF && b[1] === 0xFE) return new TextDecoder('utf-16le').decode(buf);
+  if (b[0] === 0xFE && b[1] === 0xFF) return new TextDecoder('utf-16be').decode(buf);
+  return new TextDecoder('utf-8').decode(buf);
+}
+
 export default function WhatsAppCard() {
   const [loading,      setLoading]      = useState(false);
   const [result,       setResult]       = useState<{ matched: number; contacts: ImportEntry[] } | null>(null);
@@ -32,7 +41,7 @@ export default function WhatsAppCard() {
     setResult(null);
 
     try {
-      const content = await file.text();
+      const content = await readFileAsText(file);
       const res = await fetch('/api/integrations/whatsapp/import', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },

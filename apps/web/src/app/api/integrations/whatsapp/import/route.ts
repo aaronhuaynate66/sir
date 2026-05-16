@@ -22,35 +22,78 @@ interface ConversationStats {
   silencePeriods: number; // days without messages
 }
 
+// Strip accents + emoji for fuzzy name matching
+function normalizeContactName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function parseWhatsAppExport(content: string, userDisplayName: string): Map<string, ParsedMessage[]> {
-  // Format: [DD/MM/YYYY, HH:MM] Name: message  (or various locale variants)
-  const lineRe = /^\[?(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}),?\s*(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?)\]?\s*[-–]\s*(.+?):\s*([\s\S]*?)(?=^\[?|\n\[?|$)/gm;
+  // Strip BOM and normalize line endings
+  const text = content
+    .replace(/^﻿/, '')   // UTF-8 BOM
+    .replace(/^￾/, '')   // UTF-16 LE BOM (if survived decoding)
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
 
+  // Format A: [DD/MM/YY, HH:MM:SS] Name: message  (bracket, iOS + new Android)
+  const reBracket = /^\[(\d{1,2}\/\d{1,2}\/\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?)\]\s+(.+?):\s(.*)$/i;
+  // Format B: DD/MM/YY, HH:MM - Name: message     (dash, old Android)
+  const reDash    = /^(\d{1,2}\/\d{1,2}\/\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?)\s+[-–]\s+(.+?):\s(.*)$/i;
+
+  const userNorm = normalizeContactName(userDisplayName);
   const msgsByContact = new Map<string, ParsedMessage[]>();
-  let match: RegExpExecArray | null;
 
-  while ((match = lineRe.exec(content)) !== null) {
-    const [, datePart, timePart, sender, text] = match;
-    if (!datePart || !timePart || !sender || text === undefined) continue;
-    const senderTrim = sender.trim();
-    if (senderTrim === userDisplayName || senderTrim.toLowerCase() === 'you') continue;
+  let pendingSender = '';
+  let pendingTs: Date | null = null;
+  let pendingText  = '';
 
-    // Parse date (try various formats)
-    let ts: Date;
-    try {
-      // Try DD/MM/YYYY
-      const [d, m, y] = datePart.split(/[\/\-\.]/).map(Number);
-      ts = new Date(`${y ?? 2024}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}T${timePart.replace(/\s/,'')}`);
-      if (isNaN(ts.getTime())) ts = new Date(`${datePart} ${timePart}`);
-    } catch {
+  function flush() {
+    if (!pendingSender || !pendingTs) return;
+    const msgs = msgsByContact.get(pendingSender) ?? [];
+    msgs.push({ ts: pendingTs, sender: pendingSender, text: pendingText.slice(0, 200) });
+    msgsByContact.set(pendingSender, msgs);
+    pendingSender = ''; pendingTs = null; pendingText = '';
+  }
+
+  for (const line of text.split('\n')) {
+    const m = reBracket.exec(line) ?? reDash.exec(line);
+    if (!m) {
+      // Continuation line — append to current message
+      if (pendingSender && line.trim()) pendingText = (pendingText + ' ' + line.trim()).slice(0, 200);
       continue;
     }
+    flush();
+
+    const [, datePart, timePart, sender, msgText] = m;
+    if (!datePart || !timePart || !sender || msgText === undefined) continue;
+
+    const senderTrim = sender.trim();
+    const senderNorm = normalizeContactName(senderTrim);
+    if ((userNorm && senderNorm === userNorm) || senderNorm === 'you') continue;
+
+    // Parse date DD/MM/YY[YY] — handle 2-digit years
+    const parts = datePart.split('/');
+    const d  = Number(parts[0]);
+    const mo = Number(parts[1]);
+    let   y  = Number(parts[2]);
+    if (y < 100) y += 2000;
+
+    // Normalize time: "8:50:12" → "08:50:12"
+    const timeNorm = timePart.trim().replace(/^(\d):/, '0$1:').replace(/\s+/g, '');
+    const ts = new Date(`${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}T${timeNorm}`);
     if (isNaN(ts.getTime())) continue;
 
-    const msgs = msgsByContact.get(senderTrim) ?? [];
-    msgs.push({ ts, sender: senderTrim, text: text.slice(0, 200) });
-    msgsByContact.set(senderTrim, msgs);
+    pendingSender = senderTrim;
+    pendingTs     = ts;
+    pendingText   = msgText.trim();
   }
+  flush();
 
   return msgsByContact;
 }
@@ -96,7 +139,7 @@ export async function POST(req: Request): Promise<Response> {
 
   const nameToPersonId = new Map<string, { id: string; name: string }>();
   for (const p of (people ?? []) as Array<{ id: string; name: string }>) {
-    nameToPersonId.set(p.name.toLowerCase(), { id: p.id, name: p.name });
+    nameToPersonId.set(normalizeContactName(p.name), { id: p.id, name: p.name });
   }
 
   // Parse WhatsApp export
@@ -106,11 +149,11 @@ export async function POST(req: Request): Promise<Response> {
   const statsList: ConversationStats[] = [];
 
   for (const [contactName, msgs] of msgsByContact.entries()) {
-    // Try to match by name (partial match)
+    // Match by normalized name (strips accents + emoji)
     let personEntry: { id: string; name: string } | undefined;
-    const cLower = contactName.toLowerCase();
+    const cNorm = normalizeContactName(contactName);
     for (const [key, val] of nameToPersonId.entries()) {
-      if (key.includes(cLower) || cLower.includes(key)) { personEntry = val; break; }
+      if (key.includes(cNorm) || cNorm.includes(key)) { personEntry = val; break; }
     }
     if (!personEntry) continue;
 
