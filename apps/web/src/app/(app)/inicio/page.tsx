@@ -61,6 +61,7 @@ async function getDashboardData(userId: string) {
     relsRes,
     opportunitiesRes,
     userRes,
+    ritualsRes,
   ] = await Promise.all([
     db.from('memories').select('*', { count: 'exact', head: true }).eq('user_id', userId),
     db.from('signals').select('*', { count: 'exact', head: true }).eq('user_id', userId),
@@ -92,6 +93,12 @@ async function getDashboardData(userId: string) {
       .select('onboarding_completed')
       .eq('id', userId)
       .single(),
+    db.from('ritual_suggestions')
+      .select('id, message, action_suggestion, priority, people(name, slug)')
+      .eq('user_id', userId)
+      .is('dismissed_at', null)
+      .order('priority', { ascending: false })
+      .limit(3),
   ]);
 
   // Build advisor suggestions locally (same algorithm as /api/advisor)
@@ -176,6 +183,12 @@ async function getDashboardData(userId: string) {
     return (now - new Date(r.last_contact_at).getTime()) / 86_400_000 >= 30;
   }).length;
 
+  type RitualRaw = { id: string; message: string; action_suggestion: string | null; priority: number; people: Array<{ name: string; slug: string }> | null };
+  type RitualRow = { id: string; message: string; action_suggestion: string | null; priority: number; people: { name: string; slug: string } | null };
+  const rituals: RitualRow[] = ((ritualsRes.data ?? []) as unknown as RitualRaw[]).map(r => ({
+    ...r, people: Array.isArray(r.people) ? (r.people[0] ?? null) : r.people,
+  }));
+
   return {
     totalMemories:      memoriesRes.count  ?? 0,
     totalSignals:       signalsRes.count   ?? 0,
@@ -189,6 +202,7 @@ async function getDashboardData(userId: string) {
     relTypeBreakdown,
     onboardingCompleted,
     atRiskCount,
+    rituals,
   };
 }
 
@@ -247,6 +261,33 @@ export default async function DashboardPage() {
       </div>
 
       {/* KPIs */}
+      {data.rituals.length > 0 && (
+        <div style={{ background: '#1a1d27', border: '1px solid #2a2d3e', borderRadius: 12, padding: '16px 20px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14 }}>🔔 Rituales pendientes</span>
+            <Link href="/rituales" style={{ color: '#6366f1', fontSize: 12, textDecoration: 'none' }}>Ver todos →</Link>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {data.rituals.map(r => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ color: '#94a3b8', fontSize: 13, margin: 0 }}>{r.message}</p>
+                  {r.action_suggestion && <p style={{ color: '#475569', fontSize: 12, margin: '2px 0 0' }}>💡 {r.action_suggestion}</p>}
+                </div>
+                {r.people && (
+                  <Link href={`/red/${r.people.slug}`} style={{
+                    padding: '4px 10px', background: '#6366f133', color: '#818cf8',
+                    borderRadius: 6, fontSize: 11, fontWeight: 600, textDecoration: 'none', flexShrink: 0,
+                  }}>
+                    Actuar
+                  </Link>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {data.atRiskCount > 0 && (
         <Link href="/red/patrones" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
