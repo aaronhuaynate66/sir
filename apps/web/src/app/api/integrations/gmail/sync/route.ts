@@ -37,6 +37,16 @@ function parseName(raw: string): string {
   return m ? (m[1] ?? raw).trim().replace(/^"|"$/g, '') : raw;
 }
 
+// Normalize for matching: lowercase + strip accents + collapse spaces
+function normalizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
@@ -90,7 +100,7 @@ export async function POST(): Promise<Response> {
   for (const p of (people ?? []) as Array<{ id: string; name: string; email: string | null }>) {
     const entry: PersonEntry = { id: p.id, name: p.name, hasEmail: !!p.email };
     if (p.email) emailToPersonId.set(p.email.toLowerCase(), entry);
-    nameToPersonId.set(p.name.toLowerCase().trim(), entry);
+    nameToPersonId.set(normalizeName(p.name), entry);
   }
 
   console.log('[gmail-sync] Total people loaded:', (people ?? []).length);
@@ -155,9 +165,9 @@ export async function POST(): Promise<Response> {
       if (!cEmail || cEmail === userEmail) continue;
       senderEmails.add(cEmail);
 
-      // Match by email first, then fall back to name
+      // Match by email first, then fall back to normalized name
       const personEntry = emailToPersonId.get(cEmail)
-        ?? nameToPersonId.get(cName.toLowerCase().trim());
+        ?? nameToPersonId.get(normalizeName(cName));
       if (!personEntry) continue;
 
       // If matched by name and person has no email yet, queue an update

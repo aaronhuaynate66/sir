@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 interface GooglePerson {
   names?: Array<{ displayName: string }>;
-  emailAddresses?: Array<{ value: string }>;
+  emailAddresses?: Array<{ value: string; metadata?: { primary?: boolean } }>;
   phoneNumbers?: Array<{ value: string }>;
   organizations?: Array<{ name: string; title?: string }>;
 }
@@ -15,6 +15,16 @@ function makeSlug(name: string): string {
     name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 48) +
     '-' + Math.random().toString(36).slice(2, 6)
   );
+}
+
+// Normalize for matching: lowercase + strip accents + collapse spaces
+function normalizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export async function POST(): Promise<Response> {
@@ -39,7 +49,6 @@ export async function POST(): Promise<Response> {
     return Response.json({ error: (e as Error).message }, { status: 401 });
   }
 
-  // Pre-load existing people for fast deduplication
   const { data: existingPeople } = await db
     .from('people')
     .select('id, name, email, phone, organization, role')
@@ -51,7 +60,7 @@ export async function POST(): Promise<Response> {
 
   for (const p of (existingPeople ?? []) as ExistingPerson[]) {
     if (p.email) byEmail.set(p.email.toLowerCase(), p);
-    byName.set(p.name.toLowerCase(), p);
+    byName.set(normalizeName(p.name), p);
   }
 
   let created = 0, updated = 0, skipped = 0;
@@ -72,25 +81,34 @@ export async function POST(): Promise<Response> {
     if (!res.ok) break;
 
     for (const contact of (data.connections ?? [])) {
-      const name  = contact.names?.[0]?.displayName?.trim();
+      const name = contact.names?.[0]?.displayName?.trim();
       if (!name) continue;
 
-      const email = contact.emailAddresses?.[0]?.value?.toLowerCase() ?? null;
+      // Prefer primary email, fall back to first in list
+      const emails = contact.emailAddresses ?? [];
+      const rawEmail = emails.find(e => e.metadata?.primary)?.value ?? emails[0]?.value ?? null;
+      const email = rawEmail?.toLowerCase() ?? null;
+
       const phone = contact.phoneNumbers?.[0]?.value ?? null;
       const org   = contact.organizations?.[0]?.name ?? null;
       const role  = contact.organizations?.[0]?.title ?? null;
 
-      const existing = (email ? byEmail.get(email) : undefined) ?? byName.get(name.toLowerCase());
+      const existing = (email ? byEmail.get(email) : undefined) ?? byName.get(normalizeName(name));
 
       if (existing) {
         const patch: Record<string, string> = {};
         if (email && !existing.email) patch['email'] = email;
         if (phone && !existing.phone) patch['phone'] = phone;
         if (org   && !existing.organization) patch['organization'] = org;
-        if (role  && !existing.role)  patch['role']  = role;
+        if (role  && !existing.role) patch['role'] = role;
 
         if (Object.keys(patch).length > 0) {
           await db.from('people').update(patch).eq('id', existing.id);
+          // Update local maps so subsequent contacts in this batch see the change
+          if (patch['email']) {
+            existing.email = patch['email'];
+            byEmail.set(patch['email'], existing);
+          }
           updated++;
         } else {
           skipped++;
@@ -106,10 +124,9 @@ export async function POST(): Promise<Response> {
           relationship_type: 'networking',
           slug:              makeSlug(name),
         });
-        // Add to local maps so duplicates within the same batch are caught
-        const fake = { id: 'new', name, email, phone, organization: org, role };
+        const fake: ExistingPerson = { id: 'new', name, email, phone, organization: org, role };
         if (email) byEmail.set(email, fake);
-        byName.set(name.toLowerCase(), fake);
+        byName.set(normalizeName(name), fake);
         created++;
       }
     }
@@ -119,7 +136,7 @@ export async function POST(): Promise<Response> {
 
   await db.from('google_integrations').update({
     contacts_synced: created + updated,
-    last_sync_at: new Date().toISOString(),
+    last_sync_at:    new Date().toISOString(),
   }).eq('user_id', user.id);
 
   return Response.json({ created, updated, skipped });
