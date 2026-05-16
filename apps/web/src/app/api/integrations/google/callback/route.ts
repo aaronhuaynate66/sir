@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase, getServiceClient } from '@/lib/supabase-server';
-import { getAppUrl, getCallbackUrl } from '../_lib';
+import { getAppUrl, GOOGLE_OAUTH_CALLBACK_URL } from '../_lib';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       code,
       client_id:     process.env['GOOGLE_CLIENT_ID']!,
       client_secret: process.env['GOOGLE_CLIENT_SECRET']!,
-      redirect_uri:  getCallbackUrl(),
+      redirect_uri:  GOOGLE_OAUTH_CALLBACK_URL,
       grant_type:    'authorization_code',
     }),
   });
@@ -70,5 +70,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       { onConflict: 'user_id' }
     );
 
-  return NextResponse.redirect(base('/config/integraciones?connected=1'));
+  // Redirect back to the custom domain (sir.marlabinc.com) after OAuth completes.
+  const finalUrl = `${getAppUrl()}/config/integraciones?connected=google`;
+  return NextResponse.redirect(finalUrl);
 }

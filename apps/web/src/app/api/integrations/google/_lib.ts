@@ -19,8 +19,12 @@ export function getAppUrl(): string {
   return process.env['NEXT_PUBLIC_APP_URL'] ?? 'https://sir-web.vercel.app';
 }
 
+// Always points to the Vercel deployment — must match what's registered in Google Cloud Console.
+export const GOOGLE_OAUTH_CALLBACK_URL = 'https://sir-web.vercel.app/api/integrations/google/callback';
+
+/** @deprecated Use GOOGLE_OAUTH_CALLBACK_URL directly. */
 export function getCallbackUrl(): string {
-  return `${getAppUrl()}/api/integrations/google/callback`;
+  return GOOGLE_OAUTH_CALLBACK_URL;
 }
 
 /** Returns a valid access token, refreshing if expired (5-min buffer). */

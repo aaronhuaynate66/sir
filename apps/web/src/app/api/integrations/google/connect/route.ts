@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
-import { getAppUrl, getCallbackUrl } from '../_lib';
+import { getAppUrl, GOOGLE_OAUTH_CALLBACK_URL } from '../_lib';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +16,7 @@ export async function GET(): Promise<Response> {
 
   const params = new URLSearchParams({
     client_id:     process.env['GOOGLE_CLIENT_ID'] ?? '',
-    redirect_uri:  getCallbackUrl(),
+    redirect_uri:  GOOGLE_OAUTH_CALLBACK_URL,
     response_type: 'code',
     scope:         [
       'https://www.googleapis.com/auth/contacts.readonly',
