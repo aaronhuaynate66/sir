@@ -1,8 +1,23 @@
+import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
+import InstallPWA from '@/components/InstallPWA';
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'SIR — Sistema de Inteligencia Relacional',
   description: 'Tu inteligencia relacional personal',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'SIR',
+  },
+  icons: {
+    apple: [{ url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#7C6FCD',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -18,6 +33,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         minHeight: '100vh',
       }}>
         {children}
+        <InstallPWA />
+
+        {/* Service Worker registration */}
+        <Script id="sw-register" strategy="afterInteractive">
+          {`
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js');
+              });
+            }
+          `}
+        </Script>
+
         {gaId && (
           <>
             <Script
