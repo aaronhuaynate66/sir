@@ -174,7 +174,8 @@ export default async function LandingPage() {
         <span style={{ fontSize: 18, fontWeight: 800, color: '#818cf8' }}>SIR</span>
         <div style={{ display: 'flex', gap: 24 }}>
           {[
-            { label: 'Privacidad', href: '/settings/privacy' },
+            { label: 'Privacidad', href: '/privacidad' },
+            { label: 'Términos', href: '/terminos' },
             { label: 'Iniciar sesión', href: '/login' },
             { label: 'Registrarse', href: '/signup' },
           ].map(({ label, href }) => (
