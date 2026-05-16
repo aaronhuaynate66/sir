@@ -167,6 +167,15 @@ async function getDashboardData(userId: string) {
 
   const onboardingCompleted = (userRes.data as { onboarding_completed?: boolean } | null)?.onboarding_completed ?? true;
 
+  // At-risk count: relationships with no contact in 30+ days and strength > 20
+  const now = Date.now();
+  type RelRow2 = { person_id: string; strength: number; last_contact_at: string | null };
+  const atRiskCount = ((relsRes.data ?? []) as RelRow2[]).filter(r => {
+    if (r.strength <= 20) return false;
+    if (!r.last_contact_at) return true;
+    return (now - new Date(r.last_contact_at).getTime()) / 86_400_000 >= 30;
+  }).length;
+
   return {
     totalMemories:      memoriesRes.count  ?? 0,
     totalSignals:       signalsRes.count   ?? 0,
@@ -179,6 +188,7 @@ async function getDashboardData(userId: string) {
     opportunities,
     relTypeBreakdown,
     onboardingCompleted,
+    atRiskCount,
   };
 }
 
@@ -237,6 +247,20 @@ export default async function DashboardPage() {
       </div>
 
       {/* KPIs */}
+      {data.atRiskCount > 0 && (
+        <Link href="/red/patrones" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: '#7f1d1d33', border: '1px solid #ef444444',
+          borderRadius: 10, padding: '10px 16px', textDecoration: 'none',
+          marginBottom: 16,
+        }}>
+          <span style={{ fontSize: 13, color: '#fca5a5' }}>
+            ⚠ {data.atRiskCount} relación{data.atRiskCount !== 1 ? 'es' : ''} en riesgo de enfriarse
+          </span>
+          <span style={{ color: '#f87171', fontSize: 12 }}>Ver patrones →</span>
+        </Link>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
         {[
           { label: 'Memorias',     value: data.totalMemories,   color: '#818cf8' },
