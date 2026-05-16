@@ -17,9 +17,9 @@ Versión en producción: `e27e4c7` — Phase 5 completa (23-27)
 
 ## Progreso general
 ```
-████████████████████████████░░░░░░░░ 28/36 módulos completados (78%)
+████████████████████████████████████ 35/36 módulos completados (97%)
 ```
-✅ Completo: 28 | 🔄 Parcial: 0 | ⬜ Pendiente: 8
+✅ Completo: 35 | 🔄 Parcial: 0 | ⬜ Pendiente: 1
 
 ---
 
@@ -508,45 +508,84 @@ Construye el Executive Mode — vista de alto nivel para usuarios premium.
 
 ---
 
-### 29 — Stripe Webhooks + Subscriptions ⬜ Pendiente
-**Estado:** ⬜ Pendiente
-**Descripción:** Webhook handler para `customer.subscription.*` events, actualizar `plan` en users table, portal de cliente Stripe.
+### 29 — Gmail Integration (Phase 6)
+**Estado:** ✅ Completo
+**Commit:** `4a655fa` (2026-05-15)
+**Descripción:** Gmail OAuth (gmail.readonly), sync de últimos 6 meses, análisis con Claude Haiku.
+**Componentes:**
+- `GET /api/integrations/gmail/connect` — OAuth con scopes contacts+calendar+gmail
+- `POST /api/integrations/gmail/sync` — Gmail API, batch-fetch metadata (200 msgs), Claude Haiku para topics/tone
+- `GmailCard.tsx` — card en /config/integraciones con estado conectado, emails procesados
+- SQL: `emails_synced`, `gmail_last_sync_at` columns en google_integrations
 
 ---
 
-### 30 — RevenueCat Mobile Subscriptions ⬜ Pendiente
-**Estado:** ⬜ Pendiente
-**Descripción:** Integración RevenueCat para iOS/Android, paywalls nativos, sync con Supabase.
+### 30 — WhatsApp Chat Export (Phase 6)
+**Estado:** ✅ Completo
+**Commit:** `c34c614` (2026-05-15)
+**Descripción:** Import de exports de WhatsApp (.txt), análisis con Claude Haiku, memorias semánticas.
+**Componentes:**
+- `POST /api/integrations/whatsapp/import` — parser del formato WhatsApp, match por nombre, Claude Haiku analysis
+- `WhatsAppCard.tsx` — instrucciones + file upload + historial de imports
 
 ---
 
-### 31 — Onboarding Flow ⬜ Pendiente
-**Estado:** ⬜ Pendiente
-**Descripción:** Wizard post-signup: nombre → primer contacto → conectar Google → primer briefing. Progress indicator 4 pasos.
+### 31 — Notas de Voz (Phase 6)
+**Estado:** ✅ Completo
+**Commit:** `e7e0fb9` (2026-05-15)
+**Descripción:** Grabación de audio con MediaRecorder + transcripción en tiempo real vía SpeechRecognition.
+**Componentes:**
+- `POST /api/voice/transcribe` — Claude Haiku extrae mentions, emotion, topics, signals del transcript
+- `VoiceNote.tsx` — componente cliente: graba, transcribe en vivo (editable), guarda con análisis
+- Integrado en perfil de persona (/red/[slug]) y página de señales (/senales)
 
 ---
 
-### 32 — Email Weekly Digest Cron ⬜ Pendiente
-**Estado:** ⬜ Pendiente
-**Descripción:** Vercel cron lunes 8am → genera digest personalizado por usuario → envía via Resend.
+### 32 — Patrones de Comportamiento (Phase 6)
+**Estado:** ✅ Completo
+**Commit:** `79eb832` (2026-05-15)
+**Descripción:** Dashboard de análisis conductual de relaciones.
+**Componentes:**
+- `GET /api/analytics/behavior` — API con 4 secciones: at-risk, desbalanceadas, pendientes, más activas
+- `/red/patrones` — dashboard con las 4 secciones y links a perfiles
+- Banner de alerta en /inicio cuando hay relaciones en riesgo
 
 ---
 
-### 33 — Push Notifications Mobile ⬜ Pendiente
-**Estado:** ⬜ Pendiente
-**Descripción:** Expo push tokens → recordatorios de contacto, alertas de señales importantes.
+### 33 — Rituales Relacionales (Phase 6)
+**Estado:** ✅ Completo
+**Commit:** `4b883d1` (2026-05-15)
+**Descripción:** Motor de sugerencias proactivas diarias (cron) para mantener relaciones.
+**Componentes:**
+- `POST /api/rituals/engine` — genera sugerencias por tipo: no_contact (21d), birthday (7d), anniversary (14d), job_change, achievement, strength_declining
+- `POST /api/rituals/dismiss` — descarta sugerencia
+- `/rituales` page + `RitualsList.tsx` (client, con dismiss optimista)
+- Widget en /inicio con top 3 rituales + enlace "Ver todos"
+- SQL: `ritual_suggestions` table con RLS
 
 ---
 
-### 34 — Neo4j Graph Sync ⬜ Pendiente
-**Estado:** ⬜ Pendiente
-**Descripción:** Sync bidireccional Supabase ↔ Neo4j, queries Cypher para caminos relacionales, grafo expandido.
+### 34 — Fechas y Rituales Personalizados (Phase 6)
+**Estado:** ✅ Completo
+**Commit:** `ffc581d` (2026-05-15)
+**Descripción:** Fechas especiales personalizadas por relación.
+**Componentes:**
+- `GET/POST/DELETE /api/people/[id]/dates` — CRUD de fechas
+- `SpecialDates.tsx` — card en perfil de persona: lista de fechas con días restantes + modal de creación
+- Motor de rituales actualizado para incluir custom_dates (14 días de anticipación)
+- SQL: `people_dates` table con RLS
 
 ---
 
-### 35 — Custom Domain + SSL ⬜ Pendiente
-**Estado:** ⬜ Pendiente
-**Descripción:** Configurar dominio propio en Vercel, certificado SSL automático, redirects www→apex.
+### 35 — Análisis de Salud Relacional (Phase 6)
+**Estado:** ✅ Completo
+**Commit:** `9dcb968` (2026-05-15)
+**Descripción:** Score 0-100 de salud relacional por persona.
+**Componentes:**
+- `GET /api/people/[id]/health` — score con breakdown: frecuencia (30%), reciprocidad (25%), calidad (25%), señales (20%), trend vs mes anterior
+- `/red/salud` — dashboard con heatmap de todos los contactos, secciones por severidad
+- Puntos de color (verde/amarillo/rojo) en tarjetas de /red
+- Link "Ver salud →" en header de /red
 
 ---
 
