@@ -14,13 +14,17 @@ interface HistoryItem {
   contacts: ImportEntry[];
 }
 
-async function readFileAsText(file: File): Promise<string> {
-  const buf = await file.arrayBuffer();
-  const b = new Uint8Array(buf.slice(0, 4));
-  // Detect UTF-16 BOM
-  if (b[0] === 0xFF && b[1] === 0xFE) return new TextDecoder('utf-16le').decode(buf);
-  if (b[0] === 0xFE && b[1] === 0xFF) return new TextDecoder('utf-16be').decode(buf);
-  return new TextDecoder('utf-8').decode(buf);
+function readFileAsText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      // Truncate to 3MB to stay under Vercel's 4.5MB body limit
+      resolve(result.length > 3_000_000 ? result.substring(0, 3_000_000) : result);
+    };
+    reader.onerror = () => reject(new Error(`FileReader error: ${reader.error?.message ?? 'unknown'}`));
+    reader.readAsText(file, 'utf-8');
+  });
 }
 
 export default function WhatsAppCard() {
@@ -42,9 +46,7 @@ export default function WhatsAppCard() {
 
     let content: string;
     try {
-      const raw = await readFileAsText(file);
-      // Truncate to 3MB to avoid Vercel 4.5MB body limit
-      content = raw.length > 3_000_000 ? raw.slice(0, 3_000_000) : raw;
+      content = await readFileAsText(file);
     } catch (e) {
       setErrMsg(`Error al leer el archivo: ${String(e)}`);
       setLoading(false);
