@@ -77,16 +77,24 @@ export async function POST(): Promise<Response> {
   const profile = await profileRes.json() as { emailAddress?: string };
   const userEmail = profile.emailAddress?.toLowerCase() ?? '';
 
-  // Pre-load people for matching
+  // Pre-load people for matching — email-exact first, name fallback second
   const { data: people } = await db
     .from('people')
     .select('id, name, email')
     .eq('user_id', user.id);
 
-  const emailToPersonId = new Map<string, { id: string; name: string }>();
+  type PersonEntry = { id: string; name: string; hasEmail: boolean };
+  const emailToPersonId = new Map<string, PersonEntry>();
+  const nameToPersonId  = new Map<string, PersonEntry>();
+
   for (const p of (people ?? []) as Array<{ id: string; name: string; email: string | null }>) {
-    if (p.email) emailToPersonId.set(p.email.toLowerCase(), { id: p.id, name: p.name });
+    const entry: PersonEntry = { id: p.id, name: p.name, hasEmail: !!p.email };
+    if (p.email) emailToPersonId.set(p.email.toLowerCase(), entry);
+    nameToPersonId.set(p.name.toLowerCase().trim(), entry);
   }
+
+  // Track email updates needed for name-matched people without email in DB
+  const emailUpdates = new Map<string, string>(); // personId → email
 
   // List messages from last 6 months (max 200)
   const sixMonthsAgo = new Date();
@@ -140,8 +148,17 @@ export async function POST(): Promise<Response> {
 
       if (!cEmail || cEmail === userEmail) continue;
 
-      const personEntry = emailToPersonId.get(cEmail);
+      // Match by email first, then fall back to name
+      const personEntry = emailToPersonId.get(cEmail)
+        ?? nameToPersonId.get(cName.toLowerCase().trim());
       if (!personEntry) continue;
+
+      // If matched by name and person has no email yet, queue an update
+      if (!personEntry.hasEmail && !emailUpdates.has(personEntry.id)) {
+        emailUpdates.set(personEntry.id, cEmail);
+        // Also register in email map so subsequent messages hit this person too
+        emailToPersonId.set(cEmail, { ...personEntry, hasEmail: true });
+      }
 
       if (!contactMap.has(cEmail)) {
         contactMap.set(cEmail, {
@@ -164,8 +181,17 @@ export async function POST(): Promise<Response> {
     }
   }
 
+  // Backfill emails for name-matched people that had no email in DB
+  if (emailUpdates.size > 0) {
+    await Promise.allSettled(
+      Array.from(emailUpdates.entries()).map(([personId, email]) =>
+        db.from('people').update({ email }).eq('id', personId).eq('user_id', user.id)
+      )
+    );
+  }
+
   if (contactMap.size === 0) {
-    return Response.json({ emails_processed: msgIds.length, contacts_analyzed: 0 });
+    return Response.json({ emails_processed: msgIds.length, contacts_analyzed: 0, email_backfills: emailUpdates.size });
   }
 
   // Claude Haiku analysis for all matched contacts in one call
@@ -263,5 +289,5 @@ export async function POST(): Promise<Response> {
     gmail_last_sync_at:  new Date().toISOString(),
   }).eq('user_id', user.id);
 
-  return Response.json({ emails_processed: msgIds.length, contacts_analyzed: contactsAnalyzed });
+  return Response.json({ emails_processed: msgIds.length, contacts_analyzed: contactsAnalyzed, email_backfills: emailUpdates.size });
 }
