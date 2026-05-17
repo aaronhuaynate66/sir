@@ -129,11 +129,12 @@ export default function WhatsAppCard() {
 
       <div style={{ marginBottom: 12 }}>
         <label style={{ display: 'block', color: '#94a3b8', fontSize: 12, marginBottom: 4 }}>
-          Tu nombre en WhatsApp (opcional, para filtrar tus mensajes)
+          Tu nombre en WhatsApp{' '}
+          <span style={{ color: '#475569' }}>(opcional — ayuda a identificar correctamente al contacto)</span>
         </label>
         <input
           type="text"
-          placeholder="Ej: Juan García"
+          placeholder="Ej: Aaron Huaynate Espinoza"
           value={userName}
           onChange={e => setUserName(e.target.value)}
           style={{
@@ -143,6 +144,9 @@ export default function WhatsAppCard() {
             boxSizing: 'border-box' as const,
           }}
         />
+        <p style={{ margin: '4px 0 0', fontSize: 11, color: '#475569', lineHeight: 1.4 }}>
+          Escribe tu nombre tal como aparece en el chat exportado para que SIR identifique correctamente a tu contacto y no a ti.
+        </p>
       </div>
 
       <label style={{

@@ -33,7 +33,26 @@ function normalizeContactName(name: string): string {
     .trim();
 }
 
-function parseWhatsAppExport(content: string, userDisplayName: string): Map<string, ParsedMessage[]> {
+// Returns true if senderNorm looks like any of the user name variants.
+// Uses word-overlap: requires >=2 words in common (length >2) to avoid false positives.
+function isUserSender(senderNorm: string, userNorms: string[]): boolean {
+  if (senderNorm === 'you') return true;
+  const sWords = new Set(senderNorm.split(' ').filter(w => w.length > 2));
+  for (const u of userNorms) {
+    if (!u) continue;
+    // Exact match
+    if (senderNorm === u) return true;
+    // Word overlap: >=2 words in common → same person
+    const uWords = u.split(' ').filter(w => w.length > 2);
+    const overlap = uWords.filter(w => sWords.has(w));
+    if (overlap.length >= 2) return true;
+    // One side fully contained in the other (handles nicknames)
+    if (u.length >= 4 && (senderNorm.startsWith(u) || u.startsWith(senderNorm))) return true;
+  }
+  return false;
+}
+
+function parseWhatsAppExport(content: string, userNorms: string[]): Map<string, ParsedMessage[]> {
   // Strip BOM and normalize line endings
   const text = content
     .replace(/^﻿/, '')   // UTF-8 BOM
@@ -46,7 +65,6 @@ function parseWhatsAppExport(content: string, userDisplayName: string): Map<stri
   // Format B: DD/MM/YY, HH:MM - Name: message     (dash, old Android)
   const reDash    = /^(\d{1,2}\/\d{1,2}\/\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?)\s+[-–]\s+(.+?):\s(.*)$/i;
 
-  const userNorm = normalizeContactName(userDisplayName);
   const msgsByContact = new Map<string, ParsedMessage[]>();
 
   let pendingSender = '';
@@ -75,7 +93,7 @@ function parseWhatsAppExport(content: string, userDisplayName: string): Map<stri
 
     const senderTrim = sender.trim();
     const senderNorm = normalizeContactName(senderTrim);
-    if ((userNorm && senderNorm === userNorm) || senderNorm === 'you') continue;
+    if (isUserSender(senderNorm, userNorms)) continue;
 
     // Parse date DD/MM/YY[YY] — handle 2-digit years
     const parts = datePart.split('/');
@@ -154,7 +172,20 @@ export async function POST(req: Request): Promise<Response> {
 
   console.log('[whatsapp-import] Processing:', content.length, 'chars');
   console.log('[whatsapp-import] First 150 chars:', JSON.stringify(content.substring(0, 150)));
-  console.log('[whatsapp-import] userDisplayName:', userDisplayName);
+
+  // Build user name variants for exclusion: form field + DB profile name
+  const { data: userProfile } = await db
+    .from('users')
+    .select('name')
+    .eq('id', user.id)
+    .single();
+
+  const userNorms = [
+    normalizeContactName(userDisplayName),
+    normalizeContactName(userProfile?.name ?? ''),
+  ].filter(Boolean);
+
+  console.log('[whatsapp-import] User name variants for exclusion:', userNorms);
 
   // Pre-load people
   const { data: people } = await db
@@ -168,7 +199,7 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   // Parse WhatsApp export
-  const msgsByContact = parseWhatsAppExport(content, userDisplayName);
+  const msgsByContact = parseWhatsAppExport(content, userNorms);
 
   console.log('[whatsapp-import] Parsed contacts:', msgsByContact.size);
   console.log('[whatsapp-import] Contact names found:', Array.from(msgsByContact.keys()).slice(0, 5));
