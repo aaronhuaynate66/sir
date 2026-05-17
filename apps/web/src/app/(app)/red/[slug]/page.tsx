@@ -8,6 +8,7 @@ import RelationshipTypeEditor from './RelationshipTypeEditor';
 import ScreenshotAnalyzer from './ScreenshotAnalyzer';
 import PersonProfileCards from './PersonProfileCards';
 import SpecialDates from './SpecialDates';
+import WhatsAppUploadButton from './WhatsAppUploadButton';
 import type { DbPerson, DbRelationship, PersonRelationshipType } from '@sir/db';
 
 export const dynamic = 'force-dynamic';
@@ -241,6 +242,7 @@ export default async function PersonPage({ params }: { params: { slug: string } 
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
           <BriefingButton personName={person.name} personId={person.id} history={briefings} />
+          <WhatsAppUploadButton personId={person.id} personName={person.name} />
           <ScreenshotAnalyzer
             personId={person.id}
             personName={person.name}
