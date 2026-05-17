@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getAuthUser, getServiceClient } from '@/lib/supabase-server';
-import GoogleCard from './GoogleCard';
+import GoogleCard, { type GoogleAccount } from './GoogleCard';
 import GmailCard from './GmailCard';
 import WhatsAppCard from './WhatsAppCard';
 import OutlookCard from './OutlookCard';
@@ -8,6 +8,7 @@ import OutlookCard from './OutlookCard';
 export const dynamic = 'force-dynamic';
 
 interface GoogleIntegrationRow {
+  id: string;
   access_token:       string | null;
   scopes:             string[];
   last_sync_at:       string | null;
@@ -15,6 +16,9 @@ interface GoogleIntegrationRow {
   events_synced:      number;
   emails_synced:      number;
   gmail_last_sync_at: string | null;
+  account_email:      string | null;
+  account_name:       string | null;
+  is_primary:         boolean;
 }
 
 interface MicrosoftIntegrationRow {
@@ -30,20 +34,34 @@ export default async function IntegracionesPage() {
 
   const db = getServiceClient();
 
-  const [{ data: gData }, { data: msData }] = await Promise.all([
+  const [{ data: gRows }, { data: msData }] = await Promise.all([
     db.from('google_integrations')
-      .select('access_token, scopes, last_sync_at, contacts_synced, events_synced, emails_synced, gmail_last_sync_at')
+      .select('id, access_token, scopes, last_sync_at, contacts_synced, events_synced, emails_synced, gmail_last_sync_at, account_email, account_name, is_primary')
       .eq('user_id', user.id)
-      .single(),
+      .order('is_primary', { ascending: false }),
     db.from('microsoft_integrations')
       .select('access_token, last_sync_at, contacts_synced, events_synced')
       .eq('user_id', user.id)
       .single(),
   ]);
 
-  const gRow  = gData  as GoogleIntegrationRow    | null;
-  const msRow = msData as MicrosoftIntegrationRow | null;
-  const scopes = gRow?.scopes ?? [];
+  const googleRows = (gRows ?? []) as GoogleIntegrationRow[];
+  const msRow      = msData as MicrosoftIntegrationRow | null;
+
+  const googleAccounts: GoogleAccount[] = googleRows
+    .filter(r => !!r.access_token)
+    .map(r => ({
+      id:              r.id,
+      account_email:   r.account_email,
+      account_name:    r.account_name,
+      is_primary:      r.is_primary,
+      contacts_synced: r.contacts_synced ?? 0,
+      events_synced:   r.events_synced   ?? 0,
+      last_sync_at:    r.last_sync_at,
+    }));
+
+  // GmailCard uses first account with gmail scope
+  const gmailRow = googleRows.find(r => (r.scopes ?? []).includes('gmail.readonly'));
 
   return (
     <div style={{ maxWidth: 640 }}>
@@ -56,17 +74,12 @@ export default async function IntegracionesPage() {
         </p>
       </div>
 
-      <GoogleCard
-        connected={!!gRow?.access_token}
-        lastSyncAt={gRow?.last_sync_at ?? null}
-        contactsSynced={gRow?.contacts_synced ?? 0}
-        eventsSynced={gRow?.events_synced ?? 0}
-      />
+      <GoogleCard accounts={googleAccounts} />
 
       <GmailCard
-        connected={scopes.includes('gmail.readonly')}
-        emailsSynced={gRow?.emails_synced ?? 0}
-        lastSyncAt={gRow?.gmail_last_sync_at ?? null}
+        connected={!!gmailRow}
+        emailsSynced={gmailRow?.emails_synced ?? 0}
+        lastSyncAt={gmailRow?.gmail_last_sync_at ?? null}
       />
 
       <OutlookCard

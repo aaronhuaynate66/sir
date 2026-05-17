@@ -1,3 +1,4 @@
+import { type NextRequest } from 'next/server';
 import { createServerSupabase, getServiceClient } from '@/lib/supabase-server';
 import { getValidToken, type GoogleIntegration } from '../_lib';
 
@@ -17,7 +18,6 @@ function makeSlug(name: string): string {
   );
 }
 
-// Normalize for matching: lowercase + strip accents + collapse spaces
 function normalizeName(name: string): string {
   return name
     .toLowerCase()
@@ -27,34 +27,41 @@ function normalizeName(name: string): string {
     .trim();
 }
 
-export async function POST(): Promise<Response> {
+export async function POST(req: NextRequest): Promise<Response> {
   const supabase = createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const db = getServiceClient();
-  const { data: intRow } = await db
-    .from('google_integrations')
-    .select('*')
-    .eq('user_id', user.id)
-    .single();
+  const specificId = req.nextUrl.searchParams.get('id');
 
-  if (!intRow) return Response.json({ error: 'Not connected to Google' }, { status: 400 });
-  const integration = intRow as GoogleIntegration;
-
-  let token: string;
-  try {
-    token = await getValidToken(integration, user.id);
-  } catch (e) {
-    return Response.json({ error: (e as Error).message }, { status: 401 });
+  // Fetch one or all integrations
+  let integrations: GoogleIntegration[];
+  if (specificId) {
+    const { data: row } = await db
+      .from('google_integrations')
+      .select('*')
+      .eq('id', specificId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (!row) return Response.json({ error: 'Integration not found' }, { status: 404 });
+    integrations = [row as GoogleIntegration];
+  } else {
+    const { data: rows } = await db
+      .from('google_integrations')
+      .select('*')
+      .eq('user_id', user.id);
+    if (!rows || (rows as unknown[]).length === 0) {
+      return Response.json({ error: 'Not connected to Google' }, { status: 400 });
+    }
+    integrations = rows as GoogleIntegration[];
   }
 
+  // Pre-load all existing people for deduplication (shared across accounts)
   const { data: existingPeople, count: totalBefore } = await db
     .from('people')
     .select('id, name, email, phone, organization, role', { count: 'exact' })
     .eq('user_id', user.id);
-
-  console.log('[sync-contacts] People in DB before sync:', totalBefore);
 
   type ExistingPerson = { id: string; name: string; email: string | null; phone: string | null; organization: string | null; role: string | null };
   const byEmail = new Map<string, ExistingPerson>();
@@ -65,89 +72,109 @@ export async function POST(): Promise<Response> {
     byName.set(normalizeName(p.name), p);
   }
 
-  let created = 0, updated = 0, skipped = 0;
-  let pageToken: string | undefined;
+  let totalCreated = 0, totalUpdated = 0, totalSkipped = 0;
+  const perAccount: Array<{ account_email: string | null; created: number; updated: number }> = [];
 
-  do {
-    const params = new URLSearchParams({
-      personFields: 'names,emailAddresses,phoneNumbers,organizations',
-      pageSize: '1000',
-    });
-    if (pageToken) params.set('pageToken', pageToken);
-
-    const res = await fetch(
-      `https://people.googleapis.com/v1/people/me/connections?${params.toString()}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const data = await res.json() as { connections?: GooglePerson[]; nextPageToken?: string };
-    if (!res.ok) break;
-
-    for (const contact of (data.connections ?? [])) {
-      const name = contact.names?.[0]?.displayName?.trim();
-      if (!name) continue;
-
-      // Prefer primary email, fall back to first in list
-      const emails = contact.emailAddresses ?? [];
-      const rawEmail = emails.find(e => e.metadata?.primary)?.value ?? emails[0]?.value ?? null;
-      const email = rawEmail?.toLowerCase() ?? null;
-
-      const phone = contact.phoneNumbers?.[0]?.value ?? null;
-      const org   = contact.organizations?.[0]?.name ?? null;
-      const role  = contact.organizations?.[0]?.title ?? null;
-
-      const existing = (email ? byEmail.get(email) : undefined) ?? byName.get(normalizeName(name));
-
-      if (existing) {
-        const patch: Record<string, string> = {};
-        if (email && !existing.email) patch['email'] = email;
-        if (phone && !existing.phone) patch['phone'] = phone;
-        if (org   && !existing.organization) patch['organization'] = org;
-        if (role  && !existing.role) patch['role'] = role;
-
-        if (Object.keys(patch).length > 0) {
-          await db.from('people').update(patch).eq('id', existing.id);
-          // Update local maps so subsequent contacts in this batch see the change
-          if (patch['email']) {
-            existing.email = patch['email'];
-            byEmail.set(patch['email'], existing);
-          }
-          updated++;
-        } else {
-          skipped++;
-        }
-      } else {
-        const { data: inserted } = await db.from('people').insert({
-          user_id:           user.id,
-          name,
-          email,
-          phone,
-          organization:      org,
-          role,
-          relationship_type: 'networking',
-          slug:              makeSlug(name),
-        }).select('id').single();
-        const realId = inserted?.id ?? 'unknown';
-        const entry: ExistingPerson = { id: realId, name, email, phone, organization: org, role };
-        if (email) byEmail.set(email, entry);
-        byName.set(normalizeName(name), entry);
-        created++;
-      }
+  for (const integration of integrations) {
+    let token: string;
+    try {
+      token = await getValidToken(integration, user.id);
+    } catch {
+      continue; // skip expired/broken account
     }
 
-    pageToken = data.nextPageToken;
-  } while (pageToken);
+    let created = 0, updated = 0, skipped = 0;
+    let pageToken: string | undefined;
+
+    do {
+      const params = new URLSearchParams({
+        personFields: 'names,emailAddresses,phoneNumbers,organizations',
+        pageSize: '1000',
+      });
+      if (pageToken) params.set('pageToken', pageToken);
+
+      const res = await fetch(
+        `https://people.googleapis.com/v1/people/me/connections?${params.toString()}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await res.json() as { connections?: GooglePerson[]; nextPageToken?: string };
+      if (!res.ok) break;
+
+      for (const contact of (data.connections ?? [])) {
+        const name = contact.names?.[0]?.displayName?.trim();
+        if (!name) continue;
+
+        const emails = contact.emailAddresses ?? [];
+        const rawEmail = emails.find(e => e.metadata?.primary)?.value ?? emails[0]?.value ?? null;
+        const email = rawEmail?.toLowerCase() ?? null;
+
+        const phone = contact.phoneNumbers?.[0]?.value ?? null;
+        const org   = contact.organizations?.[0]?.name ?? null;
+        const role  = contact.organizations?.[0]?.title ?? null;
+
+        const existing = (email ? byEmail.get(email) : undefined) ?? byName.get(normalizeName(name));
+
+        if (existing) {
+          const patch: Record<string, string> = {};
+          if (email && !existing.email) patch['email'] = email;
+          if (phone && !existing.phone) patch['phone'] = phone;
+          if (org   && !existing.organization) patch['organization'] = org;
+          if (role  && !existing.role) patch['role'] = role;
+
+          if (Object.keys(patch).length > 0) {
+            await db.from('people').update(patch).eq('id', existing.id);
+            if (patch['email']) {
+              existing.email = patch['email'];
+              byEmail.set(patch['email'], existing);
+            }
+            updated++;
+          } else {
+            skipped++;
+          }
+        } else {
+          const { data: inserted } = await db.from('people').insert({
+            user_id:           user.id,
+            name,
+            email,
+            phone,
+            organization:      org,
+            role,
+            relationship_type: 'networking',
+            slug:              makeSlug(name),
+          }).select('id').single();
+          const realId = inserted?.id ?? 'unknown';
+          const entry: ExistingPerson = { id: realId, name, email, phone, organization: org, role };
+          if (email) byEmail.set(email, entry);
+          byName.set(normalizeName(name), entry);
+          created++;
+        }
+      }
+
+      pageToken = data.nextPageToken;
+    } while (pageToken);
+
+    await db.from('google_integrations').update({
+      contacts_synced: created + updated,
+      last_sync_at:    new Date().toISOString(),
+    }).eq('id', integration.id);
+
+    totalCreated += created;
+    totalUpdated += updated;
+    totalSkipped += skipped;
+    perAccount.push({ account_email: integration.account_email, created, updated });
+  }
 
   const { count: totalAfter } = await db
     .from('people')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user.id);
 
-  console.log('[sync-contacts] People in DB after sync:', totalAfter, '| created:', created, '| updated:', updated, '| skipped:', skipped);
-
-  await db.from('google_integrations').update({
-    contacts_synced: created + updated,
-    last_sync_at:    new Date().toISOString(),
-  }).eq('user_id', user.id);
-
-  return Response.json({ created, updated, skipped, total_before: totalBefore, total_after: totalAfter });
+  return Response.json({
+    created: totalCreated,
+    updated: totalUpdated,
+    skipped: totalSkipped,
+    total_before: totalBefore,
+    total_after:  totalAfter,
+    accounts: perAccount,
+  });
 }

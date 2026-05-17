@@ -12,6 +12,9 @@ export interface GoogleIntegration {
   events_synced: number;
   emails_synced: number;
   gmail_last_sync_at: string | null;
+  account_email: string | null;
+  account_name: string | null;
+  is_primary: boolean;
   created_at: string;
 }
 
@@ -28,7 +31,7 @@ export function getCallbackUrl(): string {
 }
 
 /** Returns a valid access token, refreshing if expired (5-min buffer). */
-export async function getValidToken(integration: GoogleIntegration, userId: string): Promise<string> {
+export async function getValidToken(integration: GoogleIntegration, _userId: string): Promise<string> {
   const expiry = integration.token_expiry ? new Date(integration.token_expiry) : null;
   const isExpired = !expiry || expiry.getTime() - Date.now() < 5 * 60 * 1000;
   if (!isExpired) return integration.access_token;
@@ -54,7 +57,7 @@ export async function getValidToken(integration: GoogleIntegration, userId: stri
   await getServiceClient()
     .from('google_integrations')
     .update({ access_token: data.access_token, token_expiry: newExpiry.toISOString() })
-    .eq('user_id', userId);
+    .eq('id', integration.id);
 
   return data.access_token;
 }
