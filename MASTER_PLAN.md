@@ -1,8 +1,10 @@
 # SIR — Master Plan
 
 ## Estado general
-Última actualización: 2026-05-15
-Versión en producción: `feat/analytics-monitoring` — Phase 6 completa (36/36)
+Última actualización: 2026-05-16
+Versión en producción: `master` — Phase 6 completa + Fase 7 iniciada (38/44 módulos)
+
+**Nota 2026-05-16 (sesión actual):** Módulos 36-38 completados. Sentry + Vercel Analytics (36), Microsoft/Outlook OAuth + Graph API (37), WhatsApp upload por perfil de persona vía Supabase Storage (38). Fixes: React hydration #425/#418/#423, Google OAuth redirect mismatch, WhatsApp parser multi-format (español/inglés), memorias query por person_id.
 
 **Nota 2026-05-15 (última sesión):** Módulo 22 — Security Layer + Privacy Controls. RLS verificado en todas las tablas, audit_log creado. Rate limiting Supabase (20 AI calls/hora) + plan limits (free: 5 briefings total, individual/pro: 50/mes) wired en /api/briefing, /api/signals/capture, /api/human-state. GDPR: GET /api/user/export (ZIP con 9 JSONs) y DELETE /api/user/me (con confirm:true, cascade). Migraciones pendientes de aplicar: 000005-000008.
 
@@ -17,9 +19,9 @@ Versión en producción: `feat/analytics-monitoring` — Phase 6 completa (36/36
 
 ## Progreso general
 ```
-█████████████████████████████████████ 37/37 módulos completados (100%)
+████████████████████████████████████░░░░░░░ 35/47 completados (74%)
 ```
-✅ Completo: 37 | 🔄 Parcial: 0 | ⬜ Pendiente: 0
+✅ Completo: 35 | 🔄 Parcial: 0 | ⬜ Pendiente: 12
 
 ---
 
@@ -628,6 +630,52 @@ Construye el Executive Mode — vista de alto nivel para usuarios premium.
 | Supabase | ✅ Activo | pgvector, RLS, 8 tablas |
 | Neo4j AuraDB | 🔄 Parcial | cliente listo, sync pendiente |
 | Google OAuth | ✅ Activo | Contacts + Calendar integration |
+
+---
+
+---
+
+## FASE 7 — Distribución y Monetización
+
+| # | Módulo | Estado | Prioridad |
+|---|--------|--------|-----------|
+| 38 | WhatsApp por perfil de persona | ✅ Completo | Alta |
+| 39 | Re-sincronización Google Contacts | ⬜ Pendiente | Alta |
+| 40 | WhatsApp Bot (número propio) | ⬜ Pendiente | Alta |
+| 41 | Múltiples cuentas Google | ⬜ Pendiente | Media |
+| 42 | Stripe + pagos | ⬜ Pendiente | Alta |
+| 43 | Extensión de Chrome | ⬜ Pendiente | Media |
+| 44 | EAS Build App Store/Play Store | ⬜ Pendiente | Baja |
+
+## Bugs Pendientes
+
+| # | Bug | Estado | Prioridad |
+|---|-----|--------|-----------|
+| B1 | Gmail sync 0 contactos analizados | ⬜ Pendiente | Media |
+| B2 | Google Contacts bajó de 602 a 131 | ⬜ Pendiente | Alta |
+| B3 | Errores React hydration #425/#418 | ⬜ Pendiente | Media |
+
+## Calidad Pendiente
+
+| # | Item | Estado |
+|---|------|--------|
+| Q1 | Probar onboarding con usuario nuevo real | ⬜ Pendiente |
+| Q2 | Verificar briefing usa contexto WhatsApp | ⬜ Pendiente |
+| Q3 | Notas en inglés mezcladas en perfiles | ⬜ Pendiente |
+
+---
+
+## Resumen de progreso total
+
+| Fase | Módulos | Completados |
+|------|---------|-------------|
+| Fase 0-4 (Core) | 17 | 17 ✅ |
+| Fase 5 (Calidad) | 8 | 8 ✅ |
+| Fase 6 (Inteligencia) | 9 | 9 ✅ |
+| Fase 7 (Distribución) | 7 | 1 ✅ · 6 ⬜ |
+| Bugs | 3 | 0 ⬜ |
+| Calidad | 3 | 0 ⬜ |
+| **Total** | **47** | **35 ✅** |
 
 ---
 
