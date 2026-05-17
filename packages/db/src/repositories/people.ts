@@ -22,7 +22,8 @@ export async function updatePerson(
   id: string,
   data: Partial<Pick<DbPerson,
     'name' | 'email' | 'phone' | 'organization' | 'role' |
-    'linkedin_url' | 'instagram_url' | 'avatar_url' | 'notes' | 'tags' | 'language' |
+    'linkedin_url' | 'instagram_url' | 'facebook_url' | 'twitter_url' | 'tiktok_url' |
+    'avatar_url' | 'notes' | 'tags' | 'language' |
     'relationship_type' | 'birthday' | 'anniversary' | 'location' | 'education' |
     'work_history' | 'cycle_data' | 'sensitive_context' |
     'notes_professional' | 'notes_social' | 'notes_personal'
