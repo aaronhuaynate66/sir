@@ -80,20 +80,32 @@ function ruleBasedExtract(content: string): {
   };
 }
 
+const SIGNAL_LABELS_ES: Record<SocialSignalType, string> = {
+  promotion:    'PROMOCIÓN',
+  job_change:   'CAMBIO DE TRABAJO',
+  travel:       'VIAJE',
+  birthday:     'CUMPLEAÑOS',
+  publication:  'PUBLICACIÓN',
+  life_event:   'EVENTO VITAL',
+  health_event: 'EVENTO DE SALUD',
+  achievement:  'LOGRO',
+  loss:         'PÉRDIDA',
+};
+
 const EXTRACTION_PROMPT = (content: string) =>
-  `Analyze this text and extract a social signal.
+  `Analiza este texto y extrae una señal social. Responde SIEMPRE en español.
 
-Text: "${content}"
+Texto: "${content}"
 
-Return ONLY valid JSON (no markdown, no extra text):
+Devuelve SOLO JSON válido (sin markdown, sin texto extra):
 {
-  "signal_type": "one of: promotion|job_change|travel|birthday|publication|life_event|health_event|achievement|loss",
-  "person_name": "full name of main person mentioned, or null",
-  "opportunity_score": <integer 0-100>,
-  "action_recommendation": "<specific 1-sentence action to strengthen this relationship>"
+  "signal_type": "uno de: promotion|job_change|travel|birthday|publication|life_event|health_event|achievement|loss",
+  "person_name": "nombre completo de la persona mencionada, o null",
+  "opportunity_score": <entero 0-100>,
+  "action_recommendation": "<acción concreta de 1 frase para fortalecer esta relación, en español>"
 }
 
-Score guide: job_change/promotion=85-95, achievement=80-90, birthday/life_event=65-80, travel=55-70, loss=60-75, health=50-65`;
+Guía de puntuación: job_change/promotion=85-95, achievement=80-90, birthday/life_event=65-80, travel=55-70, loss=60-75, health=50-65`;
 
 // ─── Handler ─────────────────────────────────────────────────────────────────
 
@@ -222,7 +234,7 @@ export async function POST(req: Request): Promise<Response> {
     const signalId = (signal as { id: string }).id;
 
     // ── Create social memory ───────────────────────────────────────────────────
-    const label = extracted.signal_type.toUpperCase().replace('_', ' ');
+    const label = SIGNAL_LABELS_ES[extracted.signal_type] ?? extracted.signal_type.toUpperCase();
     const who   = extracted.person_name ?? 'contacto';
     await db.from('memories').insert({
       user_id:    user.id,
