@@ -653,15 +653,15 @@ Construye el Executive Mode — vista de alto nivel para usuarios premium.
 |---|-----|--------|-----------|
 | B1 | Gmail sync 0 contactos analizados | ⬜ Pendiente | Media |
 | B2 | Google Contacts bajó de 602 a 131 | ⬜ Pendiente | Alta |
-| B3 | Errores React hydration #425/#418 | ⬜ Pendiente | Media |
+| B3 | Errores React hydration #425/#418 | ✅ Completo | Media |
 
 ## Calidad Pendiente
 
 | # | Item | Estado |
 |---|------|--------|
 | Q1 | Probar onboarding con usuario nuevo real | ⬜ Pendiente |
-| Q2 | Verificar briefing usa contexto WhatsApp | ⬜ Pendiente |
-| Q3 | Notas en inglés mezcladas en perfiles | ⬜ Pendiente |
+| Q2 | Verificar briefing usa contexto WhatsApp | ✅ 2026-05-16 |
+| Q3 | Notas en inglés mezcladas en perfiles | ✅ 2026-05-17 |
 | Q4 | UX redes sociales: botón "Escanear perfil" + Facebook/Twitter/TikTok | ✅ 2026-05-16 |
 
 ---
