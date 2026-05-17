@@ -237,6 +237,31 @@ function toBase64Scan(file: File): Promise<string> {
   });
 }
 
+async function compressImage(file: File): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale  = Math.min(1, 1200 / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        },
+        'image/jpeg',
+        0.8,
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 // ─── ScanProfilePanel ─────────────────────────────────────────────────────────
 
 const SCAN_EDITABLE_FIELDS: [keyof AnalysisResult['data'], string][] = [
@@ -261,7 +286,7 @@ function ScanProfilePanel({
   onSaved:    () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [analyzing, setAnalyzing]    = useState(false);
+  const [status,    setStatus]       = useState('');  // '' = idle
   const [scanErr,   setScanErr]      = useState<string | null>(null);
   const [result,    setResult]       = useState<AnalysisResult | null>(null);
   const [confirmed, setConfirmed]    = useState<AnalysisResult['data'] | null>(null);
@@ -273,18 +298,22 @@ function ScanProfilePanel({
   const platLabel = SCAN_PLATFORM_LABELS[plat] ?? 'Perfil';
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    let file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
+    setScanErr(null);
 
-    // Warn early if file is too large (>3MB uncompressed → ~4MB base64)
+    // Auto-compress if > 3 MB
     if (file.size > 3_000_000) {
-      setScanErr('La imagen es muy grande. Recorta o comprime el screenshot antes de subirlo (máx 3 MB).');
-      return;
+      if (file.size > 4_000_000) {
+        setScanErr('La imagen supera 4 MB incluso antes de comprimir. Recorta el screenshot manualmente.');
+        return;
+      }
+      setStatus('Comprimiendo imagen…');
+      file = await compressImage(file);
     }
 
-    setAnalyzing(true);
-    setScanErr(null);
+    setStatus('Analizando con IA…');
     try {
       const b64 = await toBase64Scan(file);
       const res = await fetch(`/api/people/${personId}/analyze-screenshot`, {
@@ -293,26 +322,22 @@ function ScanProfilePanel({
         body:    JSON.stringify({ image: b64, mimeType: file.type }),
       });
 
-      // Handle non-JSON responses (413 "Request Entity Too Large", 502, etc.)
       let json: AnalysisResult | { error: string };
       try {
         json = await res.json() as typeof json;
       } catch {
-        const statusText = res.status === 413
-          ? 'Imagen demasiado grande para el servidor. Recorta o comprime el screenshot.'
-          : `Error del servidor (${res.status})`;
-        throw new Error(statusText);
+        throw new Error(res.status === 413
+          ? 'Imagen demasiado grande para el servidor. Recorta el screenshot.'
+          : `Error del servidor (${res.status})`);
       }
 
-      if (!res.ok || 'error' in json) {
-        throw new Error('error' in json ? json.error : `Error ${res.status}`);
-      }
+      if (!res.ok || 'error' in json) throw new Error('error' in json ? json.error : `Error ${res.status}`);
       setResult(json);
       setConfirmed({ ...json.data });
     } catch (err) {
       setScanErr(err instanceof Error ? err.message : 'Error al analizar');
     } finally {
-      setAnalyzing(false);
+      setStatus('');
     }
   }
 
@@ -382,8 +407,8 @@ function ScanProfilePanel({
   // ── Instructions panel (inline) ────────────────────────────────────────────
   return (
     <div style={{ marginTop: 6, background: '#0f1520', border: '1px solid #2a2d3e', borderRadius: 8, padding: '10px 14px' }}>
-      {analyzing ? (
-        <p style={{ margin: 0, fontSize: 12, color: '#818cf8' }}>🔍 Analizando screenshot…</p>
+      {status ? (
+        <p style={{ margin: 0, fontSize: 12, color: '#818cf8' }}>⏳ {status}</p>
       ) : (
         <>
           <p style={{ margin: '0 0 8px', fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>

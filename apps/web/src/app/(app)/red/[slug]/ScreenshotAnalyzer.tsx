@@ -70,12 +70,12 @@ const MERGE_FIELDS = new Set<keyof AnalysisResult['data']>([
 export default function ScreenshotAnalyzer({ personId, personName, existingValues }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [analyzing, setAnalyzing]    = useState(false);
-  const [analyzeErr, setAnalyzeErr]  = useState<string | null>(null);
-  const [result, setResult]          = useState<AnalysisResult | null>(null);
-  const [confirmed, setConfirmed]    = useState<AnalysisResult['data'] | null>(null);
-  const [saved, setSaved]            = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [analyzeStatus, setAnalyzeStatus] = useState('');  // '' = idle
+  const [analyzeErr,    setAnalyzeErr]    = useState<string | null>(null);
+  const [result,        setResult]        = useState<AnalysisResult | null>(null);
+  const [confirmed,     setConfirmed]     = useState<AnalysisResult['data'] | null>(null);
+  const [saved,         setSaved]         = useState(false);
+  const [isPending,     startTransition]  = useTransition();
 
   function openPicker() {
     setAnalyzeErr(null);
@@ -85,18 +85,23 @@ export default function ScreenshotAnalyzer({ personId, personName, existingValue
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    let file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
-
-    if (file.size > 3_000_000) {
-      setAnalyzeErr('Imagen demasiado grande. Recorta o comprime el screenshot antes de subirlo (máx 3 MB).');
-      return;
-    }
-
-    setAnalyzing(true);
     setAnalyzeErr(null);
     setResult(null);
+
+    // Auto-compress if 3–4 MB; reject above 4 MB
+    if (file.size > 3_000_000) {
+      if (file.size > 4_000_000) {
+        setAnalyzeErr('La imagen supera 4 MB. Recorta el screenshot manualmente antes de subir.');
+        return;
+      }
+      setAnalyzeStatus('Comprimiendo imagen…');
+      file = await compressImage(file);
+    }
+
+    setAnalyzeStatus('Analizando con IA…');
 
     try {
       const base64 = await toBase64(file);
@@ -110,10 +115,9 @@ export default function ScreenshotAnalyzer({ personId, personName, existingValue
       try {
         json = await res.json() as typeof json;
       } catch {
-        const statusText = res.status === 413
-          ? 'Imagen demasiado grande para el servidor. Recorta o comprime el screenshot.'
-          : `Error del servidor (${res.status})`;
-        throw new Error(statusText);
+        throw new Error(res.status === 413
+          ? 'Imagen demasiado grande para el servidor. Recorta el screenshot.'
+          : `Error del servidor (${res.status})`);
       }
 
       if (!res.ok || 'error' in json) throw new Error('error' in json ? json.error : `Error ${res.status}`);
@@ -122,7 +126,7 @@ export default function ScreenshotAnalyzer({ personId, personName, existingValue
     } catch (err) {
       setAnalyzeErr(err instanceof Error ? err.message : 'Error al analizar');
     } finally {
-      setAnalyzing(false);
+      setAnalyzeStatus('');
     }
   }
 
@@ -151,18 +155,18 @@ export default function ScreenshotAnalyzer({ personId, personName, existingValue
 
       <button
         onClick={openPicker}
-        disabled={analyzing}
+        disabled={!!analyzeStatus}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '6px 14px', borderRadius: 8,
           border: '1px solid #2a2d3e',
-          background: analyzing ? '#1a1d27' : '#1e2130',
-          color: analyzing ? '#475569' : '#94a3b8',
+          background: analyzeStatus ? '#1a1d27' : '#1e2130',
+          color: analyzeStatus ? '#475569' : '#94a3b8',
           fontSize: 13, fontWeight: 600,
-          cursor: analyzing ? 'wait' : 'pointer', transition: 'all 0.15s',
+          cursor: analyzeStatus ? 'wait' : 'pointer', transition: 'all 0.15s',
         }}
       >
-        {analyzing ? '🔍 Analizando…' : '📷 Analizar screenshot'}
+        {analyzeStatus ? `⏳ ${analyzeStatus}` : '📷 Analizar screenshot'}
       </button>
 
       {saved && (
@@ -377,6 +381,31 @@ function toBase64(file: File): Promise<string> {
     reader.onload  = () => resolve((reader.result as string).split(',')[1] ?? '');
     reader.onerror = reject;
     reader.readAsDataURL(file);
+  });
+}
+
+async function compressImage(file: File): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale  = Math.min(1, 1200 / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        },
+        'image/jpeg',
+        0.8,
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
   });
 }
 
