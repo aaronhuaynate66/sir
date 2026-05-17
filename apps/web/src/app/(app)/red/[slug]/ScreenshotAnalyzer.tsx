@@ -89,6 +89,11 @@ export default function ScreenshotAnalyzer({ personId, personName, existingValue
     if (!file) return;
     e.target.value = '';
 
+    if (file.size > 3_000_000) {
+      setAnalyzeErr('Imagen demasiado grande. Recorta o comprime el screenshot antes de subirlo (máx 3 MB).');
+      return;
+    }
+
     setAnalyzing(true);
     setAnalyzeErr(null);
     setResult(null);
@@ -100,8 +105,18 @@ export default function ScreenshotAnalyzer({ personId, personName, existingValue
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ image: base64, mimeType: file.type }),
       });
-      const json = await res.json() as AnalysisResult | { error: string };
-      if ('error' in json) throw new Error(json.error);
+
+      let json: AnalysisResult | { error: string };
+      try {
+        json = await res.json() as typeof json;
+      } catch {
+        const statusText = res.status === 413
+          ? 'Imagen demasiado grande para el servidor. Recorta o comprime el screenshot.'
+          : `Error del servidor (${res.status})`;
+        throw new Error(statusText);
+      }
+
+      if (!res.ok || 'error' in json) throw new Error('error' in json ? json.error : `Error ${res.status}`);
       setResult(json);
       setConfirmed({ ...json.data });
     } catch (err) {

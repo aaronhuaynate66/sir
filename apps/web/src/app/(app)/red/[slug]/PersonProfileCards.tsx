@@ -276,6 +276,13 @@ function ScanProfilePanel({
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
+
+    // Warn early if file is too large (>3MB uncompressed → ~4MB base64)
+    if (file.size > 3_000_000) {
+      setScanErr('La imagen es muy grande. Recorta o comprime el screenshot antes de subirlo (máx 3 MB).');
+      return;
+    }
+
     setAnalyzing(true);
     setScanErr(null);
     try {
@@ -285,8 +292,21 @@ function ScanProfilePanel({
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ image: b64, mimeType: file.type }),
       });
-      const json = await res.json() as AnalysisResult | { error: string };
-      if ('error' in json) throw new Error(json.error);
+
+      // Handle non-JSON responses (413 "Request Entity Too Large", 502, etc.)
+      let json: AnalysisResult | { error: string };
+      try {
+        json = await res.json() as typeof json;
+      } catch {
+        const statusText = res.status === 413
+          ? 'Imagen demasiado grande para el servidor. Recorta o comprime el screenshot.'
+          : `Error del servidor (${res.status})`;
+        throw new Error(statusText);
+      }
+
+      if (!res.ok || 'error' in json) {
+        throw new Error('error' in json ? json.error : `Error ${res.status}`);
+      }
       setResult(json);
       setConfirmed({ ...json.data });
     } catch (err) {
